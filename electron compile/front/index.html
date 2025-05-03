@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trip Text Generator</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      font-family: monospace;
+      text-align: center;
+      padding: 50px;
+    }
+    textarea {
+      width: 80%;
+      height: 100px;
+      font-size: 18px;
+      padding: 10px;
+    }
+    .output {
+      font-size: 32px;
+      margin-top: 30px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      animation: shake 0.3s infinite alternate;
+    }
+    @keyframes shake {
+      from { transform: translateX(-1px) rotate(-1deg); }
+      to { transform: translateX(1px) rotate(1deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Триповий Генератор Текста</h1>
+  <textarea id="input" placeholder="Введи свой текст...">Смотри как могу, лол!</textarea><br>
+  <button onclick="generate()">Генерировать</button>
+  <div class="output" id="output"></div>
+
+  <script>
+    const combiningMarks = [
+      '\u0300', '\u0301', '\u0302', '\u0303', '\u0304', '\u0305',
+      '\u0306', '\u0307', '\u0308', '\u0309', '\u030A', '\u030B',
+      '\u030C', '\u030D', '\u030E', '\u030F', '\u0310', '\u0311',
+      '\u0312', '\u0313', '\u0314', '\u0315', '\u0316', '\u0317',
+      '\u0318', '\u0319', '\u031A', '\u0488', '\u0489'
+    ];
+
+    function randomMarks(count = 6) {
+      let marks = '';
+      for (let i = 0; i < count; i++) {
+        marks += combiningMarks[Math.floor(Math.random() * combiningMarks.length)];
+      }
+      return marks;
+    }
+
+    function distortChar(char) {
+      const boldMap = {
+        'А': '𝔄', 'а': '𝔞', 'Б': '𝔅', 'б': '𝔟', 'В': '𝔅', 'в': '𝔟',
+        'Г': '𝔊', 'г': '𝔤', 'Д': '𝔇', 'д': '𝔡', 'Е': '𝔈', 'е': '𝔢',
+        'Ё': '𝔈', 'ё': '𝔢', 'Ж': 'Ж', 'ж': 'ж', 'З': '𝕫', 'з': '𝕫',
+        'И': '𝕀', 'и': '𝕚', 'Й': '𝕀', 'й': '𝕚', 'К': '𝕂', 'к': '𝕜',
+        'Л': '𝕃', 'л': '𝕝', 'М': '𝕄', 'м': '𝕞', 'Н': 'ℕ', 'н': '𝕟',
+        'О': '𝕆', 'о': '𝕠', 'П': 'ℙ', 'п': '𝕡', 'Р': 'ℝ', 'р': '𝕣',
+        'С': '𝕊', 'с': '𝕤', 'Т': '𝕋', 'т': '𝕥', 'У': '𝕌', 'у': '𝕦',
+        'Ф': 'Ф', 'ф': 'ф', 'Х': '𝕏', 'х': '𝕩', 'Ц': 'Ц', 'ц': 'ц',
+        'Ч': 'Ч', 'ч': 'ч', 'Ш': 'Ш', 'ш': 'ш', 'Щ': 'Щ', 'щ': 'щ',
+        'Ъ': 'Ъ', 'ъ': 'ъ', 'Ы': 'Ы', 'ы': 'ы', 'Ь': 'Ь', 'ь': 'ь',
+        'Э': 'Э', 'э': 'э', 'Ю': 'Ю', 'ю': 'ю', 'Я': 'Я', 'я': 'я'
+      };
+      const base = boldMap[char] || char;
+      return base + randomMarks(Math.floor(Math.random() * 6) + 2);
+    }
+
+    function generate() {
+      const input = document.getElementById("input").value;
+      const output = [...input].map(c => distortChar(c)).join('');
+      document.getElementById("output").innerText = output;
+    }
+
+    generate(); // Initial render
+  </script>
+</body>
+</html>

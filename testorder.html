@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="uk"><head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>Список замовлень</title>
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+<div class="order-list">
+    <h1>Список замовлень</h1>
+    <table>
+        <thead>
+        <tr>
+            <th class="left-rounded">№ замовлення</th>
+            <th>Штрих-код</th>
+            <th>Поточний статус</th>
+            <th>Клієнт</th>
+            <th>Опис</th>
+            <th>Розмір</th>
+            <th>Кількість</th>
+            <th>Вартість</th>
+            <th>Статус оплати</th>
+            <th>Дата створення</th>
+            <th>Дата завершення</th>
+            <th>Відповідальний за замовлення</th>
+            <th>Зробити рахунок</th>
+            <th class="right-rounded">Видалити</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Замовлення 1 -->
+        <tr>
+            <td class="center-text">665432</td>
+            <td class="center-text">891-12b</td>
+            <td class="center-text">Склад</td>
+            <td class="center-text">Клієнт А</td>
+            <td class="center-text">Друк плакатів</td>
+            <td class="center-text">A3</td>
+            <td class="center-text">100 шт</td>
+            <td class="center-text">1200 грн</td>
+            <td class="center-text">Оплачено</td>
+            <td class="center-text">01.10.2024</td>
+            <td class="center-text">05.10.2024</td>
+            <td class="center-text"><button class="invoice-btn">Іванов І.</button></td>
+            <td class="center-text"><button class="invoice-btn">Зробити рахунок</button></td>
+            <td class="center-text"><button class="delete-btn">Видалити</button></td>
+        </tr>
+        <tr>
+            <td colspan="14">
+                <div class="order-details">
+                    <!-- Субзамовлення 1 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122332</p>
+                        <p><strong>Поточний статус:</strong> Склад (Іванов І.І.)</p>
+                        <p><strong>Тип продукції:</strong> Плакати</p>
+                        <p><strong>Найменування:</strong> Друк кольорових плакатів</p>
+                        <p><strong>Кількість:</strong> 50 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 12 грн</p>
+                        <p><strong>Вартість:</strong> 600 грн</p>
+                    </div>
+                    <!-- Субзамовлення 2 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122333</p>
+                        <p><strong>Поточний статус:</strong> Склад (Іванов І.І.)</p>
+                        <p><strong>Тип продукції:</strong> Плакати</p>
+                        <p><strong>Найменування:</strong> Друк кольорових плакатів</p>
+                        <p><strong>Кількість:</strong> 50 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 12 грн</p>
+                        <p><strong>Вартість:</strong> 600 грн</p>
+                    </div>
+                    <!-- Субзамовлення 3 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122334</p>
+                        <p><strong>Поточний статус:</strong> Склад (Іванов І.І.)</p>
+                        <p><strong>Тип продукції:</strong> Плакати</p>
+                        <p><strong>Найменування:</strong> Друк чорно-білих плакатів</p>
+                        <p><strong>Кількість:</strong> 100 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 10 грн</p>
+                        <p><strong>Вартість:</strong> 1000 грн</p>
+                    </div>
+                    <!-- Субзамовлення 4 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122335</p>
+                        <p><strong>Поточний статус:</strong> Виробництво (Петров П.П.)</p>
+                        <p><strong>Тип продукції:</strong> Листівки</p>
+                        <p><strong>Найменування:</strong> Друк рекламних листівок</p>
+                        <p><strong>Кількість:</strong> 200 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 5 грн</p>
+                        <p><strong>Вартість:</strong> 1000 грн</p>
+                    </div>
+                    <p class="summary-info">Використано: 20 аркушів SrA3, Виробів на аркуші: ~7 шт</p>
+                </div>
+            </td>
+        </tr>
+
+        <!-- Замовлення 2 -->
+        <tr>
+            <td class="center-text">664321</td>
+            <td class="center-text">891-45c</td>
+            <td class="center-text">Виробництво</td>
+            <td class="center-text">Клієнт Б</td>
+            <td class="center-text">Друк брошур</td>
+            <td class="center-text">A4</td>
+            <td class="center-text">200 шт</td>
+            <td class="center-text">3400 грн</td>
+            <td class="center-text">Не оплачено</td>
+            <td class="center-text">02.10.2024</td>
+            <td class="center-text">06.10.2024</td>
+            <td class="center-text">Петров П.</td>
+            <td class="center-text"><button class="invoice-btn">Зробити рахунок</button></td>
+            <td class="center-text"><button class="delete-btn">Видалити</button></td>
+        </tr>
+        <tr>
+            <td colspan="14">
+                <div class="order-details">
+                    <!-- Субзамовлення 1 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122123</p>
+                        <p><strong>Поточний статус:</strong> Виробництво (Петров П.П.)</p>
+                        <p><strong>Тип продукції:</strong> Брошури</p>
+                        <p><strong>Найменування:</strong> Друк рекламних брошур</p>
+                        <p><strong>Кількість:</strong> 100 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 17 грн</p>
+                        <p><strong>Вартість:</strong> 1700 грн</p>
+                    </div>
+                    <!-- Субзамовлення 2 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122124</p>
+                        <p><strong>Поточний статус:</strong> Виробництво (Петров П.П.)</p>
+                        <p><strong>Тип продукції:</strong> Брошури</p>
+                        <p><strong>Найменування:</strong> Друк рекламних брошур</p>
+                        <p><strong>Кількість:</strong> 100 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 17 грн</p>
+                        <p><strong>Вартість:</strong> 1700 грн</p>
+                    </div>
+                    <!-- Субзамовлення 3 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122125</p>
+                        <p><strong>Поточний статус:</strong> Виробництво (Петров П.П.)</p>
+                        <p><strong>Тип продукції:</strong> Листівки</p>
+                        <p><strong>Найменування:</strong> Друк чорно-білих листівок</p>
+                        <p><strong>Кількість:</strong> 150 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 6 грн</p>
+                        <p><strong>Вартість:</strong> 900 грн</p>
+                    </div>
+                    <!-- Субзамовлення 4 -->
+                    <div class="sub-order">
+                        <p><strong>№ субзамовлення:</strong> 122126</p>
+                        <p><strong>Поточний статус:</strong> Виробництво (Петров П.П.)</p>
+                        <p><strong>Тип продукції:</strong> Листівки</p>
+                        <p><strong>Найменування:</strong> Друк кольорових листівок</p>
+                        <p><strong>Кількість:</strong> 200 шт</p>
+                        <p><strong>Ціна за одиницю:</strong> 7 грн</p>
+                        <p><strong>Вартість:</strong> 1400 грн</p>
+                    </div>
+                    <p class="summary-info">Використано: 30 аркушів SrA3, Виробів на аркуші: ~8 шт</p>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>

@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<invoice>
+  <invoiceNumber>2025/00123</invoiceNumber>
+  <invoiceDate>03.04.2025</invoiceDate>
+  <supplierName>ТОВ &quot;Компанія-постачальник&quot;</supplierName>
+  <supplierCode>12345678</supplierCode>
+  <supplierIBAN>UA123456789012345678901234567</supplierIBAN>
+  <supplierBank>АТ КБ &quot;ПриватБанк&quot;</supplierBank>
+  <supplierPhone>+380501234567</supplierPhone>
+  <supplierAddress>м. Львів, вул. Поштова, 10</supplierAddress>
+  <buyerName>ТОВ &quot;Компанія-покупець&quot;</buyerName>
+  <buyerCode>87654321</buyerCode>
+  <buyerTaxCode>87654321</buyerTaxCode>
+  <buyerIBAN>UA987654321098765432109876543</buyerIBAN>
+  <buyerBank>АТ КБ &quot;Універсал Банк&quot;</buyerBank>
+  <buyerMFO>322001</buyerMFO>
+  <buyerAddress>м. Київ, вул. Хрещатик, 1</buyerAddress>
+  <buyerPhone>+380671234567</buyerPhone>
+  <paymentReason>Оплата згідно договору № 123 від 01.01.2025</paymentReason>
+  <totalSum>56000</totalSum>
+  <vatSum>9333.33</vatSum>
+  <totalSumWords>П'ятдесят шість тисяч гривень 00 копійок</totalSumWords>
+  <directorName>Іваненко Іван Іванович</directorName>
+  <accountantName>Петренко Петро Петрович</accountantName>
+  <approvalName>ФОП Іваненко Іван Іванович</approvalName>
+  <products>
+    <product>
+      <index>1</index>
+      <name>Ноутбук Asus ZenBook</name>
+      <unit>шт.</unit>
+      <quantity>1</quantity>
+      <price>40000</price>
+      <total>40000</total>
+    </product>
+    <product>
+      <index>2</index>
+      <name>Монітор LG UltraWide</name>
+      <unit>шт.</unit>
+      <quantity>2</quantity>
+      <price>8000</price>
+      <total>16000</total>
+    </product>
+  </products>
+</invoice>

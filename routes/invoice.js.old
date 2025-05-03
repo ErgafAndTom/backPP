@@ -1,0 +1,209 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../models');
+const authMiddleware = require('../middlewares/auth');
+const roleMiddleware = require('../middlewares/role');
+const { generateInvoiceDocx } = require('../services/document/generate_invoice');
+
+// Отримання всіх рахунків користувача
+router.get('/', authMiddleware, async (req, res) => {
+    console.log('GET / - Вхідні дані:', { userId: req.userId });
+    try {
+        const invoices = await db.Invoice.findAll({
+            where: { userId: req.userId },
+            include: [
+                { model: db.Contractor, as: 'contractor' },
+                { model: db.Order, as: 'order' },
+                { model: db.InvoiceDetails, as: 'details' },
+                { model: db.PaymentDetails, as: 'payments' }
+            ]
+        });
+        res.json(invoices);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при отриманні рахунків' });
+    }
+});
+
+// Отримання одного рахунку
+router.get('/:id', authMiddleware, async (req, res) => {
+    console.log('GET /:id - Вхідні дані:', { id: req.params.id, userId: req.user.id });
+    try {
+        const invoice = await db.Invoice.findOne({
+            where: { 
+                id: req.params.id,
+                userId: req.user.id 
+            },
+            include: [
+                { model: db.Contractor, as: 'contractor' },
+                { model: db.Order, as: 'order' },
+                { model: db.InvoiceDetails, as: 'details' },
+                { model: db.PaymentDetails, as: 'payments' }
+            ]
+        });
+        if (!invoice) {
+            return res.status(404).json({ error: 'Рахунок не знайдено' });
+        }
+        res.json(invoice);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при отриманні рахунку' });
+    }
+});
+
+// Створення нового рахунку
+router.post('/', authMiddleware, async (req, res) => {
+    console.log('POST / - Вхідні дані:', { body: req.body, userId: req.user.id });
+    try {
+        const { orderId, contractorId, ...invoiceData } = req.body;
+        
+        const result = await db.sequelize.transaction(async (t) => {
+            const invoice = await db.Invoice.create({
+                ...invoiceData,
+                userId: req.user.id,
+                orderId,
+                contractorId
+            }, { transaction: t });
+
+            await db.InvoiceDetails.create({
+                invoiceId: invoice.id,
+                paymentStatus: 'pending'
+            }, { transaction: t });
+
+            return invoice;
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при створенні рахунку' });
+    }
+});
+
+// Генерація рахунку в форматі DOCX
+router.post('/:id/generate', authMiddleware, async (req, res) => {
+    console.log('POST /:id/generate - Вхідні дані:', { id: req.params.id, userId: req.user.id });
+    try {
+        const invoice = await db.Invoice.findOne({
+            where: { 
+                id: req.params.id,
+                userId: req.user.id 
+            },
+            include: [
+                { model: db.Contractor, as: 'contractor' },
+                { model: db.Order, as: 'order' }
+            ]
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: 'Рахунок не знайдено' });
+        }
+
+        const invoiceData = {
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            userFio: `${req.user.role2} ${req.user.firstName} ${req.user.lastName} ${req.user.familyName}`,
+            supplierName: invoice.contractor.name,
+            supplierEdrpou: invoice.contractor.edrpou,
+            supplierAddress: invoice.contractor.address,
+            supplierIban: invoice.contractor.iban,
+            supplierBankName: invoice.contractor.bankName,
+            supplierPhone: invoice.contractor.phone,
+            supplierEmail: invoice.contractor.email,
+            buyerName: invoice.contractor.name,
+            buyerEdrpou: invoice.contractor.edrpou,
+            buyerIban: invoice.contractor.iban,
+            buyerBankName: invoice.contractor.bankName,
+            buyerAddress: invoice.contractor.address,
+            buyerPhone: invoice.contractor.phone,
+            buyerEmail: invoice.contractor.email,
+            paymentReason: invoice.paymentReason,
+            products: invoice.products,
+            totalSum: invoice.totalSum,
+            vatSum: invoice.vatSum,
+            totalSumWords: invoice.totalSumWords,
+            directorName: invoice.directorName,
+            accountantName: invoice.accountantName
+        };
+
+        const buffer = generateInvoiceDocx(invoiceData, './invoice_template.docx');
+        const fileName = `invoice_${invoice.invoiceNumber}.docx`;
+
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.end(buffer);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при генерації рахунку' });
+    }
+});
+
+// Додавання інформації про оплату
+router.post('/:id/payment', authMiddleware, async (req, res) => {
+    console.log('POST /:id/payment - Вхідні дані:', { id: req.params.id, body: req.body, userId: req.user.id });
+    try {
+        const { amount, paymentMethod, transactionId } = req.body;
+        
+        const result = await db.sequelize.transaction(async (t) => {
+            const payment = await db.PaymentDetails.create({
+                invoiceId: req.params.id,
+                amount,
+                paymentMethod,
+                transactionId,
+                paymentDate: new Date(),
+                status: 'completed'
+            }, { transaction: t });
+
+            await db.InvoiceDetails.update(
+                { paymentStatus: 'paid', paymentDate: new Date() },
+                { where: { invoiceId: req.params.id }, transaction: t }
+            );
+
+            return payment;
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при додаванні інформації про оплату' });
+    }
+});
+
+// Оновлення статусу рахунку
+router.patch('/:id/status', authMiddleware, async (req, res) => {
+    console.log('PATCH /:id/status - Вхідні дані:', { id: req.params.id, body: req.body, userId: req.user.id });
+    try {
+        const { status } = req.body;
+        const invoiceDetails = await db.InvoiceDetails.findOne({
+            where: { invoiceId: req.params.id }
+        });
+
+        if (!invoiceDetails) {
+            return res.status(404).json({ error: 'Деталі рахунку не знайдено' });
+        }
+
+        await invoiceDetails.update({ paymentStatus: status });
+        res.json(invoiceDetails);
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при оновленні статусу рахунку' });
+    }
+});
+
+// Видалення рахунку
+router.delete('/:id', authMiddleware, async (req, res) => {
+    console.log('DELETE /:id - Вхідні дані:', { id: req.params.id, userId: req.user.id });
+    try {
+        const invoice = await db.Invoice.findOne({
+            where: { 
+                id: req.params.id,
+                userId: req.user.id 
+            }
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: 'Рахунок не знайдено' });
+        }
+
+        await invoice.destroy();
+        res.json({ message: 'Рахунок успішно видалено' });
+    } catch (error) {
+        res.status(500).json({ error: 'Помилка при видаленні рахунку' });
+    }
+});
+
+module.exports = router; 

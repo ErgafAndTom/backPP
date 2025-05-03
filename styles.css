@@ -1,0 +1,122 @@
+@font-face {
+    font-family: 'Gotham';
+    src: url('fonts/Gotham.woff2') format('woff2'),
+    url('fonts/Gotham.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: 'Gotham', Arial, sans-serif;
+    margin: 20px;
+    background-color: rgba(233, 230, 218, 0.5); /* Прозорість 50% */
+}
+
+.order-list {
+    width: 100%;
+    max-width: 1720px;
+    margin: 0 auto;
+    background-color: #E9E6DA; /* Фон списку замовлень */
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    font-size: 24px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+thead {
+    background-color: #F2EFE8;
+}
+
+th, td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-size: 13px; /* Однаковий розмір шрифту */
+    background-color: #F2EFE8; /* Фон для замовлень та колонок */
+}
+
+th {
+    background-color: #F2EFE8; /* Фон для заголовків колонок */
+    font-weight: bold;
+    text-align: center;
+}
+
+td {
+    text-align: center;
+}
+
+.left-rounded {
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.right-rounded {
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+button {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.invoice-btn {
+    background-color: #FAB416;
+    color: white;
+}
+
+.invoice-btn:hover {
+    background-color: #e0a40e;
+}
+
+.delete-btn {
+    background-color: #EE3C23;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #c72e19;
+}
+
+.order-details {
+    background-color: #f9f9f9;
+    padding: 10px;
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+}
+
+.sub-order {
+    background-color: #F2EFE8;
+    padding: 10px;
+    margin-top: 20px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+}
+
+.sub-order p {
+    margin: 5px 0;
+    font-size: 13px; /* Шрифт для основних елементів субзамовлення */
+    text-align: left;
+}
+
+.summary-info {
+    margin-top: 20px;
+    font-size: 13px; /* Однаковий розмір шрифту з субзамовленнями */
+    text-align: left;
+    font-style: italic;
+}
