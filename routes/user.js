@@ -533,15 +533,15 @@ router.post("/getMyPayments",
             const pageSize = req.body.inPageCount; // Розмір сторінки
             const columnNameForOrder = req.body.columnName.column; // Ім'я колонки для сортування
             const searchString = `%${req.body.search}%`;
-            let fieldsForSearch = Object.keys(db.PaymentDetails.rawAttributes);
+            let fieldsForSearch = Object.keys(db.Contractor.rawAttributes);
             let SearchConditions = fieldsForSearch.map(field => ({[field]: {[Op.like]: searchString}}));
             let toColumn = 'ASC'
-            let userId = req.body.clientId;
+            let userId = req.params.id;
             if (req.body.columnName.reverse) {
                 toColumn = 'DESC'
             }
             console.log(SearchConditions);
-            const users = await db.PaymentDetails.findAndCountAll({
+            const users = await db.Contractor.findAndCountAll({
                 offset: (pageNumber - 1) * pageSize, // Зсув для поточної сторінки
                 limit: pageSize, // Кількість записів на сторінці
                 where: {
@@ -554,7 +554,7 @@ router.post("/getMyPayments",
                     [columnNameForOrder, toColumn] // Сортування за заданою колонкою
                 ]
             });
-            users.metadata = Object.keys(db.PaymentDetails.rawAttributes);
+            users.metadata = Object.keys(db.Contractor.rawAttributes);
             res.status(200).json(users);
         } catch (error) {
             console.log(error);
