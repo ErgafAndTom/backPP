@@ -8,6 +8,7 @@ const authMiddleware = require('../middlewares/auth');
 const {Op} = require("../back/modelDB");
 const { generateInvoiceDocx } = require('../services/document/generate_invoice');
 const path = require('path');
+const {readdirSync, existsSync} = require("node:fs");
 
 router.post('/register', async (req, res) => {
     try {
@@ -415,9 +416,9 @@ router.post("/generateDoc",
                     
                     console.log('Використовуємо шаблон:', templatePath);
                     // Перевіряємо наявність файлу
-                    if (!fs.existsSync(templatePath)) {
+                    if (!existsSync(templatePath)) {
                         console.error(`Файл шаблону не знайдено: ${templatePath}`);
-                        console.log('Доступні файли в директорії:', fs.readdirSync(templatesDir));
+                        console.log('Доступні файли в директорії:', readdirSync(templatesDir));
                     }
                     
                     const buffer = generateInvoiceDocx(invoiceData, templatePath);
