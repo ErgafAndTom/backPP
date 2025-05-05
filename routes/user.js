@@ -158,18 +158,33 @@ router.put(
 router.get("/getprices", async function (req, res) {
     res.send(prices)
 })
-router.get("/getUserInfo", authMiddleware,
-    async function (req, res) {
+// router.get("/getUserInfo", authMiddleware,
+//     async function (req, res) {
+//     try {
+//         const { username, password } = req.body;
+//         const hash = bcrypt.hashSync(password, 8);
+//         const user = await db.User.create({ username, password: hash });
+//         res.status(201).json({ message: 'Пользователь создан', user });
+//     } catch (error) {
+//         res.status(500).json({ error: 'Ошибка при создании пользователя' });
+//     }
+//     res.send(req.userId)
+// })
+
+router.get('/getOneUser/:id', authMiddleware, async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const hash = bcrypt.hashSync(password, 8);
-        const user = await db.User.create({ username, password: hash });
-        res.status(201).json({ message: 'Пользователь создан', user });
+        const id = req.params.id;
+        const user = await db.User.findByPk(id, {
+            attributes: ['username', 'id', 'firstName', 'lastName', 'familyName', 'email', 'phoneNumber', 'discount', 'telegram', 'photoLink', 'role'],
+        });
+        if (!user) {
+            return res.status(404).json({ error: 'Пользователь не найден' });
+        }
+        res.status(200).json(user);
     } catch (error) {
-        res.status(500).json({ error: 'Ошибка при создании пользователя' });
+        res.status(500).json({ error: 'Ошибка при получении данных пользователя' });
     }
-    res.send(req.userId)
-})
+});
 
 router.post("/all",
     authMiddleware,
