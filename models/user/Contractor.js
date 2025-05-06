@@ -10,6 +10,9 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
         },
+        type: {
+            type: DataTypes.STRING,
+        },
         address: {
             type: DataTypes.STRING,
         },
@@ -32,6 +35,9 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
         },
         taxSystem: {
+            type: DataTypes.STRING,
+        },
+        pdv: {
             type: DataTypes.STRING,
         },
         comment: {

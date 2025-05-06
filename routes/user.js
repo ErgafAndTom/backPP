@@ -484,6 +484,7 @@ router.post("/addPayment",
             console.log(req.body);
             const Contractor = await db.Contractor.create({
                 name: formValues.name,
+                type: formValues.type,
                 address: formValues.address,
                 bankName: formValues.bankName,
                 iban: formValues.iban,
@@ -491,6 +492,7 @@ router.post("/addPayment",
                 email: formValues.email,
                 phone: formValues.phone,
                 taxSystem: formValues.taxSystem,
+                pdv: formValues.pdv,
                 comment: formValues.comment,
                 userId: userId,
             });
@@ -514,6 +516,7 @@ router.post("/updatePayment",
                 const updatedRowsCount = await db.Contractor.update(
                     {
                         name: formValues.name,
+                        type: formValues.type,
                         address: formValues.address,
                         bankName: formValues.bankName,
                         iban: formValues.iban,
@@ -521,6 +524,7 @@ router.post("/updatePayment",
                         email: formValues.email,
                         phone: formValues.phone,
                         taxSystem: formValues.taxSystem,
+                        pdv: formValues.pdv,
                         comment: formValues.comment,
                     },
                     {

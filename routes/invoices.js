@@ -309,6 +309,128 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// Создать новый счёт на основе заказа и сразу вернуть DOCX
+router.post('/from-order/:orderId/document', authMiddleware, async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const {
+            supplierId,
+            buyerId
+        } = req.body;
+        // let supplierId = req.userId
+
+        // 1. Получаем заказ
+        const order = await db.Order.findByPk(orderId, {
+            include: [
+                { model: db.OrderUnit, as: 'OrderUnits', include: [{ model: db.OrderUnitUnit, as: 'OrderUnitUnits' }] },
+                { model: db.User, as: 'client', attributes: ['firstName','lastName','familyName','email','phoneNumber'], include: [{ model: db.Contractor }] },
+                { model: db.User, as: 'executor', attributes: ['firstName','lastName','familyName','email','phoneNumber'], include: [{ model: db.Contractor }] },
+            ]
+        });
+        if (!order) return res.status(404).json({ error: 'Замовлення не знайдено' });
+
+        // 2. Находим или создаём supplier & buyer (как в вашем /from-order)
+        const supplier = supplierId
+            ? await db.Contractor.findOne({ where: { id: 1}})
+            : await db.Contractor.findOne({ where: { userId: req.userId }});
+        if (!supplier) return res.status(405).json({ error: 'Постачальника не знайдено' });
+
+        let buyer;
+        if (buyerId) {
+            buyer = await db.Contractor.findOne({ where: { id: buyerId}});
+            if (!buyer) return res.status(406).json({ error: 'Покупця не знайдено' });
+        } else if (order.client) {
+            const clientName = [order.client.lastName, order.client.firstName, order.client.familyName].filter(Boolean).join(' ');
+            buyer = await db.Contractor.findOrCreate({
+                where: { userId: req.userId, name: clientName },
+                defaults: { email: order.client.email, phone: order.client.phoneNumber }
+            }).then(([c]) => c);
+        } else {
+            return res.status(400).json({ error: 'Нема даних про покупця' });
+        }
+
+        // 3. Собираем items и totalSum
+        const items = order.OrderUnits.map(u => ({
+            name: u.name || 'Товар/послуга',
+            unit: 'шт.',
+            quantity: u.count || 1,
+            price: parseFloat(u.priceForOneThis) || 0,
+            total: (u.count || 1) * (parseFloat(u.priceForThis) || 0)
+        }));
+        const totalSum = items.reduce((s, it) => s + it.total, 0);
+
+        // 4. Генерируем номер и сохраняем запись
+        const today = new Date();
+        const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(order.id).padStart(4,'0')}`;
+        const invoice = await db.Invoice.create({
+            orderId: order.id,
+            invoiceNumber,
+            invoiceDate: today,
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            buyerId: buyer.id,
+            buyerName: buyer.name,
+            totalSum,
+            items,
+            userId: req.userId
+        });
+
+        // 5. Подготавливаем данные для шаблона
+        const user = await db.User.findByPk(req.userId);
+        const invoiceData = {
+            invoiceNumber,
+            invoiceDate: today.toLocaleDateString(),
+            userFio: [user.role2, user.firstName, user.lastName, user.familyName].filter(Boolean).join(' '),
+            supplierName: supplier.name,
+            supplierEdrpou: supplier.edrpou,
+            supplierAddress: supplier.address,
+            supplierIban: supplier.iban,
+            supplierBankName: supplier.bankName,
+            supplierPhone: supplier.phone,
+            supplierEmail: supplier.email,
+            buyerName: buyer.name,
+            buyerEdrpou: buyer.edrpou,
+            buyerAddress: buyer.address,
+            buyerIban: buyer.iban,
+            buyerBankName: buyer.bankName,
+            buyerPhone: buyer.phone,
+            buyerEmail: buyer.email,
+            paymentReason: 'Оплата згідно рахунку',
+            products: items.map((it, i) => ({
+                index: i+1,
+                name: it.name,
+                unit: it.unit,
+                quantity: it.quantity,
+                price: it.price,
+                total: it.total
+            })),
+            totalSum,
+            vatSum: totalSum * 0.2,
+            totalSumWords: numberToWords(totalSum) + ' гривень 00 копійок',
+            directorName: 'Іваненко Іван Іванович',
+            accountantName: 'Петренко Петро Петрович'
+        };
+
+        // 6. Выбираем шаблон по taxSystem покупателя
+        let templatePath = path.join(__dirname, '../services/document/invoice_template1.docx');
+        if (['1 група','2 група','3 група','3 група із ПДВ','4 група','Дія.Сіті','Неприбуткова організація']
+            .includes(buyer.taxSystem)) {
+            templatePath = path.join(__dirname, '../services/document/Akt_template.docx');
+        }
+
+        // 7. Генерируем DOCX-буфер и отдаем его
+        const buffer = await generateInvoiceDocx(invoiceData, templatePath);
+        const fileName = `invoice_${invoiceNumber.replace(/\//g,'_')}.docx`;
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.end(buffer);
+
+    } catch (err) {
+        console.error('Помилка при генерації нового інвойсу:', err);
+        res.status(500).json({ error: 'Серверна помилка при генерації інвойсу' });
+    }
+});
+
 // Генерувати документ для рахунку
 router.post('/:id/document', authMiddleware, async (req, res) => {
     try {
