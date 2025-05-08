@@ -1,0 +1,10 @@
+/* Імпортуємо шрифт Montserrat з Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+/* Або використовуємо локальний шлях до нашого сервера */
+/* @import url('/fonts/montserrat.css'); */
+
+/* Застосовуємо шрифт до всіх елементів */
+body, html {
+  font-family: 'Montserrat', sans-serif;
+}

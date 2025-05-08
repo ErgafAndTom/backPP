@@ -4,6 +4,8 @@ const db = require('../models');
 const authMiddleware = require('../middlewares/auth');
 const roleMiddleware = require('../middlewares/role');
 const { Op } = require("sequelize");
+const path = require("path");
+const {generateInvoiceDocx} = require("../services/document/generate_invoice");
 
 // Получение списка всех материалов (только для администратора и менеджера)
 // route,
@@ -211,14 +213,42 @@ router.post(
     roleMiddleware(['admin']),
     async (req, res) => {
         try {
-            const { name, description, quantity, unit } = req.body;
-            const material = await db.Material.create({
-                name,
-                description,
-                quantity,
-                unit,
+            const result = await db.sequelize.transaction(async (t) => {
+                const { name, description, quantity, unit } = req.body;
+                const  material = await db.Material.create({
+                    name,
+                    description,
+                    quantity,
+                    unit,
+                });
+
+
+
+                const pageNumber = req.body?.currentPage || 1;
+                const pageSize = req.body?.inPageCount || 10;
+                const columnNameForOrder = req.body?.columnName?.column || 'id';
+                const searchString = `%${req.body?.search || ''}%`;
+
+                let fieldsForSearch = Object.keys(db.Material.rawAttributes);
+                let searchConditions = fieldsForSearch.map(field => ({ [field]: { [Op.like]: searchString } }));
+                let toColumn = req.body?.columnName?.reverse ? 'DESC' : 'ASC';
+
+
+                const result = await db.Material.findAndCountAll({
+                    offset: (pageNumber - 1) * pageSize,
+                    limit: pageSize,
+                    where: {
+                        [Op.or]: searchConditions
+                    },
+                    order: [
+                        [columnNameForOrder, toColumn] // Сортування за заданою колонкою
+                    ],
+                });
+                result.metadata = Object.keys(db.Material.rawAttributes);
+                result.metadataProductUnit = Object.keys(db.Material.rawAttributes);
+                return result
             });
-            res.status(201).json({ message: 'Материал создан', material });
+            res.status(201).json(result);
         } catch (error) {
             res.status(500).json({ error: 'Ошибка при создании материала' });
         }

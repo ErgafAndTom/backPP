@@ -56,6 +56,7 @@ app.use(
 );
 const PathToBuild = "frontpp";
 app.use(express.static(path.resolve(__dirname, `../${PathToBuild}/build`)));
+app.use('/fonts', express.static(path.resolve(__dirname, 'data/fonts')));
 app.get(['/Orders','/Orders/*', '/Desktop', '/Users', '/Storage', '/db2', '/Trello', '/login', '/Invoices', '/Invoices/*', '/Contractors', '/Contractors/*'], (req, res) => {
     res.sendFile(path.resolve(__dirname, `../${PathToBuild}/build`, 'index.html'));
 });

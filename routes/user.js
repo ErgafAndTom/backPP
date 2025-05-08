@@ -191,6 +191,7 @@ router.post("/all",
     roleMiddleware(['admin', 'manager', 'operator']),
     async function (req, res) {
     try {
+        console.log(req.body);
         const pageNumber = req.body.currentPage; // Номер сторінки (перша сторінка - 1)
         const pageSize = req.body.inPageCount; // Розмір сторінки
         const columnNameForOrder = req.body.columnName.column; // Ім'я колонки для сортування
