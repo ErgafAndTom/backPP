@@ -6,6 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const { generateInvoiceDocx } = require('../services/document/generate_invoice');
 const { Op } = require('sequelize');
+const puppeteer = require('puppeteer');
+const generateInvoicePdf = require("../services/document/docxGenerator.js");
 
 // Отримати всі рахунки
 router.get('/', authMiddleware, async (req, res) => {
@@ -32,6 +34,81 @@ router.get('/', authMiddleware, async (req, res) => {
         res.status(500).json({ error: 'Помилка сервера при отриманні рахунків' });
     }
 });
+
+router.post('/:id/document', authMiddleware, async (req, res) => {
+    try {
+        // 1. Збираємо дані
+        const invoice = await db.Invoice.findByPk(req.params.id, {
+            include: [
+                { model: db.Contractor, as: 'supplier' },
+                { model: db.Contractor, as: 'buyer' }
+            ]
+        });
+        if (!invoice) return res.status(404).json({ error: 'Рахунок не знайдено' });
+
+        const user = await db.User.findByPk(req.userId);
+
+        const invoiceData = {
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString(),
+            supplierName: invoice.supplier.name,
+            supplierCode: invoice.supplier.edrpou,
+            supplierIBAN: invoice.supplier.iban,
+            supplierBank: invoice.supplier.bankName,
+            supplierPhone: invoice.supplier.phone,
+            buyerName: invoice.buyer.name,
+            buyerCode: invoice.buyer.edrpou,
+            buyerAddress: invoice.buyer.address,
+            buyerPhone: invoice.buyer.phone,
+            products: invoice.items.map((item, idx) => ({
+                index: idx + 1,
+                name: item.name,
+                unit: item.unit,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.quantity * item.price
+            })),
+            totalSum: invoice.items.reduce((sum, i) => sum + i.quantity * i.price, 0),
+            approvalName: user ? `${user.firstName} ${user.lastName}` : ''
+        };
+
+        // 2. Вказуємо шлях до вашого шаблону
+        const templatePath = path.join(__dirname, '../services/document/invoice_template.docx');
+
+        // 3. Генеруємо DOCX
+        const buffer = await generateInvoiceDocx(invoiceData, templatePath);
+
+        // 4. Відправляємо клієнту
+        const fileName = `invoice-${invoice.invoiceNumber.replace(/\//g, '_')}.docx`;
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.send(buffer);
+
+    } catch (err) {
+        console.error('Error generating document:', err);
+        res.status(500).json({ error: 'Не вдалося згенерувати документ' });
+    }
+});
+
+
+// router.get('/pdf/:id', async (req, res) => {
+//     const invoiceData = await db.Invoice.findByPk(req.params.id, {
+//         include: [
+//             {
+//                 model: db.Contractor,
+//                 as: 'supplier',
+//             },
+//             {
+//                 model: db.Contractor,
+//                 as: 'buyer',
+//             }
+//         ]
+//     }); // твоя логіка
+//     const pdf = await generateInvoicePdf(invoiceData);
+//     res.contentType('application/pdf');
+//     res.send(pdf);
+// });
+
 
 // Отримати окремий рахунок за id
 router.get('/:id', authMiddleware, async (req, res) => {
@@ -431,105 +508,106 @@ router.post('/from-order/:orderId/document', authMiddleware, async (req, res) =>
     }
 });
 
-// Генерувати документ для рахунку
-router.post('/:id/document', authMiddleware, async (req, res) => {
-    try {
-        const invoice = await db.Invoice.findByPk(req.params.id, {
-            include: [
-                {
-                    model: db.Contractor,
-                    as: 'supplier',
-                },
-                {
-                    model: db.Contractor,
-                    as: 'buyer',
-                }
-            ]
-        });
+// // Генерувати документ для рахунку
+// router.post('/:id/document', authMiddleware, async (req, res) => {
+//     try {
+//         const invoice = await db.Invoice.findByPk(req.params.id, {
+//             include: [
+//                 {
+//                     model: db.Contractor,
+//                     as: 'supplier',
+//                 },
+//                 {
+//                     model: db.Contractor,
+//                     as: 'buyer',
+//                 }
+//             ]
+//         });
+//
+//         if (!invoice) {
+//             return res.status(404).json({ error: 'Рахунок не знайдено' });
+//         }
+//
+//         const user = await db.User.findByPk(req.userId);
+//
+//         const invoiceData = {
+//             invoiceNumber: invoice.invoiceNumber,
+//             invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString(),
+//
+//             userFio: user ? `${user.role2 || ''} ${user.firstName || ''} ${user.lastName || ''} ${user.familyName || ''}`.trim() : '',
+//
+//             supplierName: invoice.supplier.name,
+//             supplierEdrpou: invoice.supplier.edrpou,
+//             supplierAddress: invoice.supplier.address,
+//             supplierIban: invoice.supplier.iban,
+//             supplierBankName: invoice.supplier.bankName,
+//             supplierPhone: invoice.supplier.phone,
+//             supplierEmail: invoice.supplier.email,
+//
+//             buyerName: invoice.buyer.name,
+//             buyerEdrpou: invoice.buyer.edrpou,
+//             buyerAddress: invoice.buyer.address,
+//             buyerIban: invoice.buyer.iban,
+//             buyerBankName: invoice.buyer.bankName,
+//             buyerPhone: invoice.buyer.phone,
+//             buyerEmail: invoice.buyer.email,
+//
+//             paymentReason: 'Оплата згідно рахунку',
+//
+//             products: invoice.items.map((item, index) => ({
+//                 index: index + 1,
+//                 name: item.name || '—',
+//                 unit: item.unit || 'шт.',
+//                 quantity: item.quantity || 1,
+//                 price: item.price || 0,
+//                 total: (item.quantity || 1) * (item.price || 0)
+//             })),
+//
+//             totalSum: invoice.totalSum,
+//             vatSum: invoice.totalSum * 0.2, // Для прикладу - 20% ПДВ
+//             totalSumWords: numberToWords(invoice.totalSum) + ' гривень 00 копійок',
+//
+//             directorName: 'Іваненко Іван Іванович',
+//             accountantName: 'Петренко Петро Петрович'
+//         };
+//
+//         let templatePath = path.join(__dirname, '../services/document/Рахунок до оплати темплейт.docx');
+//
+//         // Вибір шаблону в залежності від системи оподаткування
+//         if (invoice.buyer.taxSystem) {
+//             if (['загальна система без ПДВ', 'загальна система із ПДВ'].includes(invoice.buyer.taxSystem)) {
+//                 templatePath = path.join(__dirname, '../services/document/invoice_template1.docx');
+//             } else if (['1 група', '2 група', '3 група', '3 група із ПДВ', '4 група', 'Дія.Сіті', 'Неприбуткова організація'].includes(invoice.buyer.taxSystem)) {
+//                 templatePath = path.join(__dirname, '../services/document/Akt_template.docx');
+//             }
+//         }
+//         console.log('Дані для рахунку:', invoiceData);
+//         console.log('Шлях до шаблону:', templatePath);
+//
+//         // Перевіряємо наявність файлу перед генерацією
+//         if (!fs.existsSync(templatePath)) {
+//             console.error(`ПОМИЛКА: Файл шаблону не знайдено: ${templatePath}`);
+//             // Перевіряємо які файли є в директорії
+//             const docDir = path.dirname(templatePath);
+//             if (fs.existsSync(docDir)) {
+//                 console.log('Вміст директорії:', fs.readdirSync(docDir));
+//             } else {
+//                 console.error(`Директорія не існує: ${docDir}`);
+//             }
+//         }
+//
+//         const buffer = await generateInvoiceDocx(invoiceData, templatePath);
+//         const fileName = `invoice_${invoiceData.invoiceNumber.replace(/\//g, '_')}.docx`;
+//
+//         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+//         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+//         res.end(buffer);
+//     } catch (err) {
+//         console.error('Помилка при генерації документу:', err);
+//         res.status(500).json({ error: 'Помилка сервера при генерації документу' });
+//     }
+// });
 
-        if (!invoice) {
-            return res.status(404).json({ error: 'Рахунок не знайдено' });
-        }
-
-        const user = await db.User.findByPk(req.userId);
-
-        const invoiceData = {
-            invoiceNumber: invoice.invoiceNumber,
-            invoiceDate: new Date(invoice.invoiceDate).toLocaleDateString(),
-
-            userFio: user ? `${user.role2 || ''} ${user.firstName || ''} ${user.lastName || ''} ${user.familyName || ''}`.trim() : '',
-
-            supplierName: invoice.supplier.name,
-            supplierEdrpou: invoice.supplier.edrpou,
-            supplierAddress: invoice.supplier.address,
-            supplierIban: invoice.supplier.iban,
-            supplierBankName: invoice.supplier.bankName,
-            supplierPhone: invoice.supplier.phone,
-            supplierEmail: invoice.supplier.email,
-
-            buyerName: invoice.buyer.name,
-            buyerEdrpou: invoice.buyer.edrpou,
-            buyerAddress: invoice.buyer.address,
-            buyerIban: invoice.buyer.iban,
-            buyerBankName: invoice.buyer.bankName,
-            buyerPhone: invoice.buyer.phone,
-            buyerEmail: invoice.buyer.email,
-
-            paymentReason: 'Оплата згідно рахунку',
-
-            products: invoice.items.map((item, index) => ({
-                index: index + 1,
-                name: item.name || '—',
-                unit: item.unit || 'шт.',
-                quantity: item.quantity || 1,
-                price: item.price || 0,
-                total: (item.quantity || 1) * (item.price || 0)
-            })),
-
-            totalSum: invoice.totalSum,
-            vatSum: invoice.totalSum * 0.2, // Для прикладу - 20% ПДВ
-            totalSumWords: numberToWords(invoice.totalSum) + ' гривень 00 копійок',
-
-            directorName: 'Іваненко Іван Іванович',
-            accountantName: 'Петренко Петро Петрович'
-        };
-
-        let templatePath = path.join(__dirname, '../services/document/Рахунок до оплати темплейт.docx');
-
-        // Вибір шаблону в залежності від системи оподаткування
-        if (invoice.buyer.taxSystem) {
-            if (['загальна система без ПДВ', 'загальна система із ПДВ'].includes(invoice.buyer.taxSystem)) {
-                templatePath = path.join(__dirname, '../services/document/invoice_template1.docx');
-            } else if (['1 група', '2 група', '3 група', '3 група із ПДВ', '4 група', 'Дія.Сіті', 'Неприбуткова організація'].includes(invoice.buyer.taxSystem)) {
-                templatePath = path.join(__dirname, '../services/document/Akt_template.docx');
-            }
-        }
-        console.log('Дані для рахунку:', invoiceData);
-        console.log('Шлях до шаблону:', templatePath);
-
-        // Перевіряємо наявність файлу перед генерацією
-        if (!fs.existsSync(templatePath)) {
-            console.error(`ПОМИЛКА: Файл шаблону не знайдено: ${templatePath}`);
-            // Перевіряємо які файли є в директорії
-            const docDir = path.dirname(templatePath);
-            if (fs.existsSync(docDir)) {
-                console.log('Вміст директорії:', fs.readdirSync(docDir));
-            } else {
-                console.error(`Директорія не існує: ${docDir}`);
-            }
-        }
-
-        const buffer = await generateInvoiceDocx(invoiceData, templatePath);
-        const fileName = `invoice_${invoiceData.invoiceNumber.replace(/\//g, '_')}.docx`;
-
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.end(buffer);
-    } catch (err) {
-        console.error('Помилка при генерації документу:', err);
-        res.status(500).json({ error: 'Помилка сервера при генерації документу' });
-    }
-});
 
 // Отримати список контрагентів
 router.get('/contractors/all', authMiddleware, async (req, res) => {
@@ -640,5 +718,27 @@ function numberToWords(number) {
         return forms[3] || forms[0];
     }
 }
+
+// async function generateInvoicePdf(invoiceData) {
+//     const templatePath = path.join(__dirname, 'templates', 'invoice-template.ejs');
+//
+//     // 1. Рендеримо HTML із шаблону та даних
+//     const html = await ejs.renderFile(templatePath, invoiceData, { async: true });
+//
+//     // 2. Запускаємо Puppeteer для генерації PDF
+//     const browser = await puppeteer.launch({ headless: 'new' });
+//     const page = await browser.newPage();
+//
+//     await page.setContent(html, { waitUntil: 'networkidle0' });
+//
+//     const pdfBuffer = await page.pdf({
+//         format: 'A4',
+//         printBackground: true,
+//         margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
+//     });
+//
+//     await browser.close();
+//     return pdfBuffer;
+// }
 
 module.exports = router;
