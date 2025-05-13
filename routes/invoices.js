@@ -90,26 +90,6 @@ router.post('/:id/document', authMiddleware, async (req, res) => {
     }
 });
 
-
-// router.get('/pdf/:id', async (req, res) => {
-//     const invoiceData = await db.Invoice.findByPk(req.params.id, {
-//         include: [
-//             {
-//                 model: db.Contractor,
-//                 as: 'supplier',
-//             },
-//             {
-//                 model: db.Contractor,
-//                 as: 'buyer',
-//             }
-//         ]
-//     }); // твоя логіка
-//     const pdf = await generateInvoicePdf(invoiceData);
-//     res.contentType('application/pdf');
-//     res.send(pdf);
-// });
-
-
 // Отримати окремий рахунок за id
 router.get('/:id', authMiddleware, async (req, res) => {
     try {
@@ -394,7 +374,6 @@ router.post('/from-order/:orderId/document', authMiddleware, async (req, res) =>
             supplierId,
             buyerId
         } = req.body;
-        // let supplierId = req.userId
 
         // 1. Получаем заказ
         const order = await db.Order.findByPk(orderId, {
