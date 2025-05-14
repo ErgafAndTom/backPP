@@ -59,6 +59,10 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'buyerId',
             as: 'buyerInvoices'
         });
+        Contractor.hasOne(models.PrintPeaksContractor, {
+            foreignKey: 'contractorId',
+            as: 'printPeaksContractor',
+        });
     };
 
     return Contractor;

@@ -50,6 +50,7 @@ db.InLifeHackPhoto = require('./lifeHacks/InLifeHackPhoto')(sequelize, Sequelize
 // db.PaymentDetails = require('./user/PaymentDetails')(sequelize, Sequelize);
 
 db.Contractor = require('./user/Contractor')(sequelize, Sequelize);
+db.PrintPeaksContractor = require('./PrintPeaksContractors')(sequelize, Sequelize);
 
 Object.keys(db).forEach((modelName) => {
     if (db[modelName].associate) {

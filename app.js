@@ -8,6 +8,7 @@ const orderRoutes = require('./routes/orders');
 const orderUnitsRoutes = require('./routes/orderUnits');
 const oldRoutes = require('./routes/old');
 const userRoutes = require('./routes/user');
+const contractorRoutes = require('./routes/contractors');
 const materialRoutes = require('./routes/materials');
 const calcRoutes = require('./routes/calc');
 const statisticsRoutes = require('./routes/statistics');
@@ -127,6 +128,7 @@ app.use('/counterparties', counterpartyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/contractorsN', contractorRoutes);
 
 // Правильний проміжний обробник для перенаправлення запитів контрагентів
 app.use('/api/contractors', (req, res, next) => {
