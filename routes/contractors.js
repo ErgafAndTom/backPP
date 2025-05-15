@@ -266,14 +266,24 @@ router.post("/addPPContractor",
     async function (req, res) {
         try {
             const formValues = req.body.formData;
-            const contractorId = req.body.contractorId;
             console.log(req.body);
-            const Contractor = await db.PrintPeaksContractor.create({
-                name: formValues.name,
-                // type: formValues.type,
-                contractorId: formValues.contractorId,
+            const result = await db.sequelize.transaction(async (t) => {
+                const PrintPeaksContractor = await db.PrintPeaksContractor.create({
+                    name: formValues.name,
+                    // type: formValues.type,
+                    contractorId: formValues.contractorId,
+                }, {transaction: t});
+
+                return await db.PrintPeaksContractor.findByPk(PrintPeaksContractor.id, {
+                    transaction: t,
+                    include: [{
+                        model: db.Contractor,
+                        include: [{
+                            model: db.User,
+                        }]
+                    }]});
             });
-            res.status(201).json(Contractor);
+            res.status(201).json(result);
         } catch (error) {
             console.log(error);
             res.status(500).json({ error: 'Ошибка отправки' });
