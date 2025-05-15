@@ -305,7 +305,7 @@ router.post("/updatePPContractor",
                         // comment: formValues.comment,
                     },
                     {
-                        where: {id: formValues}
+                        where: {id: formValues.contractorId}
                     }, {transaction: t}
                 );
 
@@ -313,7 +313,13 @@ router.post("/updatePPContractor",
                     return res.status(404).json({ error: "Контрагента не знайдено або немає прав на редагування" });
                 }
 
-                return await db.PrintPeaksContractor.findByPk(printPeaksContractorId, {transaction: t});
+                return await db.PrintPeaksContractor.findByPk(formValues.contractorId, {transaction: t,
+                    include: [{
+                        model: db.Contractor,
+                        include: [{
+                            model: db.User,
+                        }]
+                    }]});
             });
             res.status(200).json(result);
         } catch (error) {
