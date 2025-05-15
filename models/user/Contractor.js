@@ -61,7 +61,6 @@ module.exports = (sequelize, DataTypes) => {
         });
         Contractor.hasOne(models.PrintPeaksContractor, {
             foreignKey: 'contractorId',
-            as: 'printPeaksContractor',
         });
     };
 

@@ -22,7 +22,6 @@ module.exports = (sequelize, DataTypes) => {
     PrintPeaksContractor.associate = (models) => {
         PrintPeaksContractor.belongsTo(models.Contractor, {
             foreignKey: 'contractorId',
-            as: 'contractor',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
         });
