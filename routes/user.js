@@ -306,7 +306,7 @@ router.post("/generateDoc1",
                     accountantName: 'Петренко Петро Петрович'
                 };
                 try {
-                    const templatePath = path.join(__dirname, '../services/document/Рахунок до оплати темплейт.docx');
+                    const templatePath = path.join(__dirname, '../services/document/Rahunok_template.docx');
                     const buffer = generateInvoiceDocx(invoiceData, templatePath);
                     const fileName = `invoice_${invoiceData.invoiceNumber}.docx`;
                     return {
@@ -428,7 +428,7 @@ router.post("/generateDoc",
                         templatePath = path.join(templatesDir, 'Akt_template.docx');
                     } else {
                         // За замовчуванням
-                        templatePath = path.join(templatesDir, 'Рахунок до оплати темплейт.docx');
+                        templatePath = path.join(templatesDir, 'Rahunok_template.docx');
                     }
                     
                     console.log('Використовуємо шаблон:', templatePath);

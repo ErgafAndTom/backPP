@@ -45,6 +45,7 @@
     "react-date-range": "^2.0.1",
     "read-excel-file": "^5.8.6",
     "sequelize": "^6.37.5",
+    "stream-buffers": "^3.0.3",
     "unzipper": "^0.12.3",
     "xml2js": "^0.6.2"
   },

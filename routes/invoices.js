@@ -4,10 +4,12 @@ const db = require('../models');
 const authMiddleware = require('../middlewares/auth');
 const path = require('path');
 const fs = require('fs');
-const { generateInvoiceDocx } = require('../services/document/generate_invoice');
+const { generateInvoiceDocx } = require('../templates/generateDoc');
 const { Op } = require('sequelize');
 const puppeteer = require('puppeteer');
 const generateInvoicePdf = require("../services/document/docxGenerator.js");
+const archiver = require('archiver');
+const streamBuffers = require('stream-buffers');
 
 // Отримати всі рахунки
 router.get('/', authMiddleware, async (req, res) => {
@@ -496,6 +498,71 @@ router.post('/from-order/:orderId/invoice', authMiddleware, async (req, res) => 
         } = req.body;
 
         // 1. Получаем заказ
+
+        const result = await db.sequelize.transaction(async (t) => {
+            const order = await db.Order.findByPk(orderId, {
+                include: [
+                    { model: db.OrderUnit, as: 'OrderUnits', include: [{ model: db.OrderUnitUnit, as: 'OrderUnitUnits' }] },
+                    { model: db.User, as: 'client', attributes: ['firstName','lastName','familyName','email','phoneNumber'], include: [{ model: db.Contractor }] },
+                    { model: db.User, as: 'executor', attributes: ['firstName','lastName','familyName','email','phoneNumber'], include: [{ model: db.Contractor }] },
+                ],
+                transaction: t
+            });
+            if (!order) return res.status(404).json({ error: 'Замовлення не знайдено' });
+
+            // 2. Находим или создаём supplier & buyer (как в вашем /from-order)
+            const supplier = await db.Contractor.findOne({ where: { id: supplierId}, transaction: t})
+            if (!supplier) return res.status(405).json({ error: 'Постачальника не знайдено' });
+
+            const buyer = await db.Contractor.findOne({ where: { id: buyerId}, transaction: t});
+            if (!buyer) return res.status(406).json({ error: 'Покупця не знайдено' });
+
+            // 3. Собираем items и totalSum
+            const items = order.OrderUnits.map(u => ({
+                name: u.name || 'Товар/послуга',
+                unit: 'шт.',
+                quantity: u.count || 1,
+                price: parseFloat(u.priceForOneThis) || 0,
+                total: (u.count || 1) * (parseFloat(u.priceForThis) || 0)
+            }));
+            const totalSum = items.reduce((s, it) => s + it.total, 0);
+
+            // 4. Генерируем номер и сохраняем запись
+            const today = new Date();
+            const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(order.id).padStart(4,'0')}`;
+            const invoice = await db.Invoice.create({
+                orderId: order.id,
+                invoiceNumber,
+                invoiceDate: today,
+                supplierId: supplier.id,
+                supplierName: supplier.name,
+                buyerId: buyer.id,
+                buyerName: buyer.name,
+                totalSum,
+                items,
+                userId: req.userId
+            }, {transaction: t});
+
+            return await db.Invoice.findOne({where: {id: invoice.id}, transaction: t});
+        });
+
+        res.status(201).json(result)
+    } catch (err) {
+        console.error('Помилка при генерації нового інвойсу:', err);
+        res.status(500).json({ error: 'Серверна помилка при генерації інвойсу' });
+    }
+});
+
+router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const {
+            supplierId,
+            buyerId
+        } = req.body;
+
+        // 1. Получаем заказ
+
         const order = await db.Order.findByPk(orderId, {
             include: [
                 { model: db.OrderUnit, as: 'OrderUnits', include: [{ model: db.OrderUnitUnit, as: 'OrderUnitUnits' }] },
@@ -509,11 +576,8 @@ router.post('/from-order/:orderId/invoice', authMiddleware, async (req, res) => 
         const supplier = await db.Contractor.findOne({ where: { id: supplierId}})
         if (!supplier) return res.status(405).json({ error: 'Постачальника не знайдено' });
 
-
         const buyer = await db.Contractor.findOne({ where: { id: buyerId}});
         if (!buyer) return res.status(406).json({ error: 'Покупця не знайдено' });
-
-
 
         // 3. Собираем items и totalSum
         const items = order.OrderUnits.map(u => ({
@@ -528,18 +592,22 @@ router.post('/from-order/:orderId/invoice', authMiddleware, async (req, res) => 
         // 4. Генерируем номер и сохраняем запись
         const today = new Date();
         const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(order.id).padStart(4,'0')}`;
-        const invoice = await db.Invoice.create({
-            orderId: order.id,
-            invoiceNumber,
-            invoiceDate: today,
-            supplierId: supplier.id,
-            supplierName: supplier.name,
-            buyerId: buyer.id,
-            buyerName: buyer.name,
-            totalSum,
-            items,
-            userId: req.userId
-        });
+        // const invoice = await db.Invoice.create({
+        //     orderId: order.id,
+        //     invoiceNumber,
+        //     invoiceDate: today,
+        //     supplierId: supplier.id,
+        //     supplierName: supplier.name,
+        //     buyerId: buyer.id,
+        //     buyerName: buyer.name,
+        //     totalSum,
+        //     items,
+        //     userId: req.userId
+        // }, {transaction: t});
+
+        // return await db.Contractor.findOne({where: {id: invoice.id}, transaction: t});
+
+        // res.status(201).json(result)
 
         // 5. Подготавливаем данные для шаблона
         const user = await db.User.findByPk(req.userId);
@@ -579,21 +647,118 @@ router.post('/from-order/:orderId/invoice', authMiddleware, async (req, res) => 
             accountantName: 'Петренко Петро Петрович'
         };
 
-        // 6. Выбираем шаблон по taxSystem покупателя
-        let templatePath;
-        if (['true']
-            .includes(buyer.pdv)) {
-            templatePath = path.join(__dirname, '../services/document/ok/Akt_templatePDV.docx');
-        } else {
-            templatePath = path.join(__dirname, '../services/document/ok/Akt_template.docx');
+        // 6. Выбираем шаблоны по taxSystem покупателя and pvd
+        let templatePath1;
+        let templatePath2;
+        let names;
+        if(buyer.taxSystem === "ФОП" || buyer.taxSystem === "Неприбуткова організація"){
+            if(buyer.pdv === "true"){
+                templatePath1 = path.join(__dirname, '../templates/aktPDV/aktPDV.docx');
+                templatePath2 = path.join(__dirname, '../templates/aktPDV/rahunokAktPDV.docx');
+            } else {
+                templatePath1 = path.join(__dirname, '../templates/akt/akt.docx');
+                templatePath2 = path.join(__dirname, '../templates/akt/rahunokAkt.docx');
+            }
+            names = ['Akt','Rahunok'];
+        } else if(buyer.taxSystem === "ТОВ"){
+            if(buyer.pdv === "true"){
+                templatePath1 = path.join(__dirname, '../templates/nakladnaPDV/NakladnaPDV.docx');
+                templatePath2 = path.join(__dirname, '../templates/nakladnaPDV/rahunokNakladnaPDV.docx');
+            } else {
+                templatePath1 = path.join(__dirname, '../templates/nakladna/nakladna.docx');
+                templatePath2 = path.join(__dirname, '../templates/nakladna/rahunokNakladna.docx');
+            }
+            names = ['Akt','Rahunok'];
         }
 
+        // let templatePath3 = path.join(__dirname, '../services/document/Rakhunok_Template.docx');
+
+        // const buffer1 = await generateInvoiceDocx(invoiceData, templatePath1);
+        // const buffer2 = await generateInvoiceDocx(invoiceData, templatePath2);
+
+        // 1. Генерируем первый DOCX
+        let buffer1;
+        try {
+            buffer1 = await generateInvoiceDocx(invoiceData, templatePath1);
+            console.log('✔️ Первый DOCX успешно сгенерирован');
+        } catch (err) {
+            console.error('❌ Ошибка при генерации первого DOCX:', err);
+            return res.status(500).json({ error: 'Ошибка при генерации первого документа' });
+        }
+
+        // 2. Генерируем второй DOCX
+        let buffer2;
+        try {
+            buffer2 = await generateInvoiceDocx(invoiceData, templatePath2);
+            console.log('✔️ Второй DOCX успешно сгенерирован');
+        } catch (err) {
+            console.error('❌ Ошибка при генерации второго DOCX:', err);
+            return res.status(500).json({ error: 'Ошибка при генерации второго документа' });
+        }
+
+        // 3. Создаём ZIP-архив
+        const outputBuffer = new streamBuffers.WritableStreamBuffer();
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        // Ловим ошибки архивации
+        archive.on('error', err => {
+            console.error('❌ Archiver error:', err);
+            return res.status(500).json({ error: 'Ошибка при создании ZIP' });
+        });
+        // Когда запись в буфер завершена — ZIP готов
+        outputBuffer.on('finish', () => {
+            console.log('✔️ ZIP успешно сформирован');
+            const zipBuffer = outputBuffer.getContents();
+            res
+                .status(200)
+                .set({
+                    'Content-Disposition': `attachment; filename="${names[1]}_ta_${names[0]}_${invoiceNumber}.zip"`,
+                    'Content-Type': 'application/zip',
+                })
+                .send(zipBuffer);
+        });
+
+        archive.pipe(outputBuffer);
+        archive.append(buffer1, { name: `${names[0]}_${invoiceNumber}.docx` });
+        archive.append(buffer2, { name: `${names[1]}_${invoiceNumber}.docx` });
+
+        // Запускаем финализацию архива
+        await archive.finalize();
+
+
+
+
+
+
+
+
+        // const outputStreamBuffer = new streamBuffers.WritableStreamBuffer();
+        // const archive = archiver('zip', { zlib: { level: 9 } });
+        //
+        // archive.pipe(outputStreamBuffer);
+        // archive.append(buffer1, { name: `${names[0]}_${invoiceNumber}.docx` });
+        // archive.append(buffer2, { name: `${names[1]}_${invoiceNumber}.docx` });
+        //
+        // await archive.finalize();
+        //
+        // archive.on('error', err => {
+        //     throw err;
+        // });
+        //
+        // archive.on('end', async () => {
+        //     const zipBuffer = await outputStreamBuffer.getContents();
+        //     console.log('✔️ ZIP успешно сформирован');
+        //     res.setHeader('Content-Disposition', `attachment; filename="Рахунок_та_${names[0]}_${invoiceNumber}.zip"`);
+        //     res.setHeader('Content-Type', 'application/zip');
+        //     res.end(zipBuffer);
+        // });
+
         // 7. Генерируем DOCX-буфер и отдаем его
-        const buffer = await generateInvoiceDocx(invoiceData, templatePath);
-        const fileName = `invoice_${invoiceNumber.replace(/\//g,'_')}.docx`;
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.end(buffer);
+        // const buffer = await generateInvoiceDocx(invoiceData, templatePath1);
+        // const fileName = `invoice_${invoiceNumber.replace(/\//g,'_')}.docx`;
+        // res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        // res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        // res.end(buffer);
 
     } catch (err) {
         console.error('Помилка при генерації нового інвойсу:', err);
@@ -664,7 +829,7 @@ router.post('/from-order/:orderId/invoice', authMiddleware, async (req, res) => 
 //             accountantName: 'Петренко Петро Петрович'
 //         };
 //
-//         let templatePath = path.join(__dirname, '../services/document/Рахунок до оплати темплейт.docx');
+//         let templatePath = path.join(__dirname, '../services/document/Rahunok_template.docx');
 //
 //         // Вибір шаблону в залежності від системи оподаткування
 //         if (invoice.buyer.taxSystem) {
