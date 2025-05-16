@@ -603,7 +603,7 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
         //     totalSum,
         //     items,
         //     userId: req.userId
-        // }, {transaction: t});
+        // });
 
         // return await db.Contractor.findOne({where: {id: invoice.id}, transaction: t});
 

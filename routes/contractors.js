@@ -261,6 +261,59 @@ router.post("/getPPContractors",
     })
 
 
+router.post("/getPPContractorsForDoc",
+    authMiddleware, roleMiddleware(['admin']),
+    async function (req, res) {
+        try {
+            const pageNumber = req.body.currentPage; // Номер сторінки (перша сторінка - 1)
+            const pageSize = req.body.inPageCount; // Розмір сторінки
+            const columnNameForOrder = req.body.columnName.column; // Ім'я колонки для сортування
+            const searchString = `%${req.body.search}%`;
+            let fieldsForSearch = Object.keys(db.PrintPeaksContractor.rawAttributes);
+            let SearchConditions = fieldsForSearch.map(field => ({[field]: {[Op.like]: searchString}}));
+            let toColumn = 'ASC'
+            let buyerId = req.body.buyerId;
+            if (req.body.columnName.reverse) {
+                toColumn = 'ASC'
+            }
+            console.log(SearchConditions);
+
+            const result = await db.sequelize.transaction(async (t) => {
+                const buyerContractor = await db.Contractor.findByPk(buyerId, {transaction: t});
+                const printPeaksContractor = await db.PrintPeaksContractor.findAndCountAll({
+                    offset: (pageNumber - 1) * pageSize, // Зсув для поточної сторінки
+                    limit: pageSize, // Кількість записів на сторінці
+                    where: {
+                        [Op.and]: [
+                            { [Op.or]: SearchConditions }        // ← як було
+                        ]
+                    },
+                    order: [
+                        [columnNameForOrder, toColumn] // Сортування за заданою колонкою
+                    ],
+                    include: [
+                        {
+                            model: db.Contractor,
+                            where: { pdv: buyerContractor.pdv },
+                            include: [
+                                {
+                                    model: db.User,
+                                }
+                            ]
+                        }
+                    ], transaction: t
+                });
+                return printPeaksContractor
+            });
+            result.metadata = Object.keys(db.PrintPeaksContractor.rawAttributes);
+            res.status(200).json(result);
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Ошибка отправки' });
+        }
+    })
+
+
 router.post("/addPPContractor",
     authMiddleware, roleMiddleware(['admin']),
     async function (req, res) {
