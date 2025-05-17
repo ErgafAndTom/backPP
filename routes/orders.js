@@ -134,20 +134,20 @@ router.post(
 
             // Додаємо умову фільтрації за датою
             if (startDate || endDate) {
-                console.log('Додаємо фільтрацію за датою:', { startDate, endDate });
+                console.log('Додаємо фільтрацію за датою:', {startDate, endDate});
                 if (startDate && endDate) {
-                    whereCondition.createdAt = { [Op.between]: [startDate, endDate] };
+                    whereCondition.createdAt = {[Op.between]: [startDate, endDate]};
                 } else if (startDate) {
-                    whereCondition.createdAt = { [Op.gte]: startDate };
+                    whereCondition.createdAt = {[Op.gte]: startDate};
                 } else if (endDate) {
-                    whereCondition.createdAt = { [Op.lte]: endDate };
+                    whereCondition.createdAt = {[Op.lte]: endDate};
                 }
             }
 
             // Обробка статусів
             const statusesObj = req.body?.statuses || {};
             let selectedStatuses = [];
-            
+
             if (statusesObj.status0) selectedStatuses.push("0");
             if (statusesObj.status1) selectedStatuses.push("1");
             if (statusesObj.status2) selectedStatuses.push("2");
@@ -158,11 +158,11 @@ router.post(
             console.log('Вибрані статуси:', selectedStatuses);
 
             if (selectedStatuses.length > 0) {
-                whereCondition.status = { [Op.in]: selectedStatuses };
+                whereCondition.status = {[Op.in]: selectedStatuses};
             }
 
             console.log('Фінальна умова WHERE:', JSON.stringify(whereCondition, null, 2));
-            console.log('Параметри сортування:', { columnNameForOrder, toColumn });
+            console.log('Параметри сортування:', {columnNameForOrder, toColumn});
 
             try {
                 console.log('Початок запиту до бази даних...');
@@ -206,7 +206,7 @@ router.post(
                     };
                 });
                 orders.metadataProductUnit = Object.keys(db.OrderUnit.rawAttributes);
-                
+
                 console.log('=== Завершення обробки запиту /orders/all ===');
                 res.status(200).json(orders);
             } catch (dbError) {
@@ -328,9 +328,58 @@ router.put(
                 const order = await db.Order.findOne({
                     where: {id: orderId},
                     // attributes: ['priceForThis'],
+                    include: [
+                        {
+                            model: db.OrderUnit,
+                            as: 'OrderUnits',
+                            include: [
+                                {
+                                    model: db.OrderUnitUnit,
+                                    as: 'OrderUnitUnits',
+                                },
+                            ],
+                        },
+                    ],
                     transaction: t
                 })
-
+                // await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                //     await db.OrderUnit.update(
+                //         {
+                //             priceForOneThisDiscount: (OrderUnit.priceForOneThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
+                //             priceForThisDiscount: (OrderUnit.priceForThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
+                //         },
+                //         { where: { idKey: OrderUnit.idKey }, transaction: t }
+                //     );
+                //     await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                //         db.OrderUnitUnit.update(
+                //             {
+                //                 priceForOneThisDiscount: (OrderUnitUnit.priceForOneThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
+                //                 priceForThisDiscount: (OrderUnitUnit.priceForThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
+                //                 priceForAllThisDiscount: (OrderUnitUnit.priceForAllThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
+                //             },
+                //             { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                //         )
+                //     ));
+                // }));
+                await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                    await db.OrderUnit.update(
+                        {
+                            priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), newDiscount),
+                            priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), newDiscount),
+                        },
+                        { where: { idKey: OrderUnit.idKey }, transaction: t }
+                    );
+                    await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                        db.OrderUnitUnit.update(
+                            {
+                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), newDiscount),
+                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), newDiscount),
+                                priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), newDiscount),
+                            },
+                            { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                        )
+                    ));
+                }));
                 let allPrice = calcSumPriceAndAllPrice(parseFloat(order.price), newDiscount)
 
 
@@ -341,6 +390,18 @@ router.put(
                 const orderAfterAll = await db.Order.findOne({
                     where: {id: orderId},
                     attributes: ['prepayment', 'allPrice'],
+                    include: [
+                        {
+                            model: db.OrderUnit,
+                            as: 'OrderUnits',
+                            include: [
+                                {
+                                    model: db.OrderUnitUnit,
+                                    as: 'OrderUnitUnits',
+                                },
+                            ],
+                        },
+                    ],
                     transaction: t
                 });
                 if (!orderAfterAll) {
@@ -649,19 +710,19 @@ router.put(
     roleMiddleware(['admin', 'manager', "operator"]),
     async (req, res) => {
         try {
-            const { newStatus, thisOrderId } = req.body;
-            
+            const {newStatus, thisOrderId} = req.body;
+
             const updateData = {
                 status: newStatus
             };
 
             // Отримуємо поточний заказ для перевірки попереднього статусу
             const currentOrder = await db.Order.findOne({
-                where: { id: thisOrderId }
+                where: {id: thisOrderId}
             });
 
             if (!currentOrder) {
-                return res.status(404).json({ error: 'Замовлення не знайдено' });
+                return res.status(404).json({error: 'Замовлення не знайдено'});
             }
 
             // Якщо статус змінюється на "1" і час початку ще не встановлено
@@ -674,12 +735,12 @@ router.put(
             if (newStatus === "3" && currentOrder.manufacturingStartTime) {
                 const finalTime = new Date();
                 updateData.finalManufacturingTime = finalTime;
-                
+
                 // Розрахунок загального часу в секундах
                 const startTime = new Date(currentOrder.manufacturingStartTime);
                 const totalSeconds = Math.floor((finalTime - startTime) / 1000);
                 updateData.totalManufacturingTimeSeconds = totalSeconds;
-                
+
                 console.log('Встановлено час завершення виготовлення:', finalTime);
                 console.log('Загальний час виготовлення (секунд):', totalSeconds);
             }
@@ -687,9 +748,9 @@ router.put(
             let result = await db.sequelize.transaction(async (t) => {
                 await db.Order.update(
                     updateData,
-                    { where: { id: thisOrderId }, transaction: t }
+                    {where: {id: thisOrderId}, transaction: t}
                 );
-                
+
                 const order = await db.Order.findOne({
                     where: {id: thisOrderId},
                     include: [
@@ -713,12 +774,12 @@ router.put(
                             as: 'client',
                             attributes: ['username', 'id', 'firstName', "lastName", "familyName", 'email', 'phoneNumber', 'discount', 'telegram', 'photoLink'],
                         },
-                    ], 
+                    ],
                     transaction: t
                 });
                 return order;
             });
-            
+
             res.status(200).json(result);
         } catch (error) {
             console.error(error);
@@ -736,14 +797,14 @@ router.put(
             const deadline = req.body.deadlineNew;
             const id = req.body.thisOrderId;
             let dateObject = null
-            if(deadline !== null){
+            if (deadline !== null) {
                 dateObject = new Date(deadline);
             }
             let rowsUpdated;
             await db.sequelize.transaction(async (t) => {
                 [rowsUpdated] = await db.Order.update(
-                    { deadline: dateObject },
-                    { where: { id: id }, transaction: t }
+                    {deadline: dateObject},
+                    {where: {id: id}, transaction: t}
                 );
                 if (rowsUpdated === 1) {
                     const order = await db.Order.findOne({
@@ -805,7 +866,7 @@ router.post('/:orderId/getComment',
     async (req, res) => {
         try {
             const toSend = await db.InOrderComment.findAll({
-                where: { orderId: req.params.orderId },
+                where: {orderId: req.params.orderId},
                 include: [
                     {
                         model: db.User,
@@ -818,7 +879,7 @@ router.post('/:orderId/getComment',
             res.status(200).json(toSend);
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Помилка сервера' });
+            res.status(500).json({message: 'Помилка сервера'});
         }
     });
 
@@ -831,7 +892,7 @@ router.post('/:orderId/addNewComment',
                     createdById: req.userId,
                     orderId: req.params.orderId,
                     comment: req.body.comment,
-                }, { transaction: t },);
+                }, {transaction: t},);
                 await newC.reload({
                     include: [{
                         model: db.User,
@@ -844,7 +905,7 @@ router.post('/:orderId/addNewComment',
             })
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Помилка сервера' });
+            res.status(500).json({message: 'Помилка сервера'});
         }
     });
 
@@ -858,7 +919,7 @@ const storage = multer.diskStorage({
 
         // Проверяем, существует ли папка, и если нет – создаем её
         if (!fs.existsSync(orderFolder)) {
-            fs.mkdirSync(orderFolder, { recursive: true });
+            fs.mkdirSync(orderFolder, {recursive: true});
         }
         cb(null, orderFolder);
     },
@@ -867,14 +928,14 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + extname(file.originalname));
     }
 });
-const uploadInOrderFiles = multer({ storage: storage });
+const uploadInOrderFiles = multer({storage: storage});
 
 router.post('/:orderId/getFiles',
     authMiddleware,
     async (req, res) => {
         try {
             const files = await db.InOrderFile.findAll({
-                where: { orderId: req.params.orderId },
+                where: {orderId: req.params.orderId},
                 include: [
                     {
                         model: db.User,
@@ -887,7 +948,7 @@ router.post('/:orderId/getFiles',
             res.status(200).json(files);
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Помилка сервера' });
+            res.status(500).json({message: 'Помилка сервера'});
         }
     });
 
@@ -918,7 +979,7 @@ router.post('/:orderId/addNewFile',
                     orderId: req.params.orderId,
                     createdById: req.userId,
                     fileName: `${req.file.originalname}`,
-                }, { transaction: t });
+                }, {transaction: t});
 
                 // Отримуємо розширення файлу
                 const newFileName = `${newFile.id}_${req.file.originalname}`;
@@ -936,14 +997,14 @@ router.post('/:orderId/addNewFile',
 
                 // Оновлюємо запис у базі даних з новим іменем файлу
                 await db.InOrderFile.update(
-                    { fileLink: newFileName },
-                    { where: { id: newFile.id }, transaction: t }
+                    {fileLink: newFileName},
+                    {where: {id: newFile.id}, transaction: t}
                 );
 
                 const newFileToSend = await db.InOrderFile.findOne({
-                    where: { id: newFile.id },
+                    where: {id: newFile.id},
                     include: [
-                        { model: db.User, as: 'createdBy', attributes: ['id', 'username'] }
+                        {model: db.User, as: 'createdBy', attributes: ['id', 'username']}
                     ],
                     transaction: t
                 });

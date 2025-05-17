@@ -66,6 +66,18 @@ module.exports = (sequelize, DataTypes) => {
         price5: {
             type: DataTypes.STRING
         },
+
+        priceForOneThisDiscount: {
+            type: DataTypes.STRING
+        },
+        priceForThisDiscount: {
+            type: DataTypes.STRING
+        },
+        priceForAllThisDiscount: {
+            type: DataTypes.STRING
+        },
+
+
         newField1: {
             type: DataTypes.STRING
         },

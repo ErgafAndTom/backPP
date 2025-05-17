@@ -1,7 +1,7 @@
 const { Materials, OrderUnitUnit } = require("./modelDB");
 const db = require("../models");
 
-module.exports = async function calculatingNewArtem(req, res, body, pricesNew, Materials) {
+module.exports = async function calculatingNewArtem(req, res, body, pricesNew, Materials, skidkaPercent) {
     let count;
     if(body.count === "" || body.count === null || body.count === undefined){
         count = 1
@@ -147,25 +147,37 @@ module.exports = async function calculatingNewArtem(req, res, body, pricesNew, M
 
         // === Розрахунок вартості постпресових послуг (за count) ===
         const countUnits = count;
-        let priceBigUnit = 0, priceCuteUnit = 0, priceHolesUnit = 0;
-        let totalPriceBig = 0, totalPriceCute = 0, totalPriceHoles = 0;
+        let priceBigUnit = 0,
+            priceCuteUnit = 0,
+            priceHolesUnit = 0;
+        let priceBigUnitForOne = 0,
+            priceCuteUnitForOne = 0,
+            priceHolesUnitForOne = 0;
+        let totalPriceBig = 0,
+            totalPriceCute = 0,
+            totalPriceHoles = 0;
 
         if (body.big !== 'Не потрібно') {
             priceBigUnit = parseFloat(getPriceFromCountFromDatabase(countUnits, selectedBig));
+            priceBigUnitForOne = priceBigUnit * body.big;
             totalPriceBig = priceBigUnit * body.big * countUnits;
         }
 
         if (body.cute !== 'Не потрібно') {
             priceCuteUnit = parseFloat(getPriceFromCountFromDatabase(countUnits, selectedCute));
+            priceCuteUnitForOne = priceCuteUnit * body.cute;
             totalPriceCute = priceCuteUnit * body.cute * countUnits;
         }
 
         if (body.holes !== 'Не потрібно') {
             priceHolesUnit = parseFloat(getPriceFromCountFromDatabase(countUnits, selectedHoles));
+            priceHolesUnitForOne = priceHolesUnit * body.holes;
             totalPriceHoles = priceHolesUnit * body.holes * countUnits;
         }
 
         // === Підсумкова вартість замовлення ===
+        let totalPriceForOne = unitSheetPrice + priceBigUnitForOne + priceCuteUnitForOne + priceHolesUnitForOne;
+        let totalPriceForAllInPriceForOne = totalPriceForOne + countUnits;
         let totalPrice = totalSheetPrice + totalPriceBig + totalPriceCute + totalPriceHoles;
 
         // Розрахунок ціни за виріб (зі всіма допами)
@@ -201,6 +213,8 @@ module.exports = async function calculatingNewArtem(req, res, body, pricesNew, M
             price: totalPrice.toFixed(2),
             unitSheetPrice,
             porizka,
+            totalPriceForOne,
+            totalPriceForAllInPriceForOne,
             pricePaperPerSheet,
             totalSheetPrice,
             priceDrukPerSheet,
