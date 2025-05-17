@@ -579,19 +579,11 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
         const buyer = await db.Contractor.findOne({ where: { id: buyerId}});
         if (!buyer) return res.status(406).json({ error: 'Покупця не знайдено' });
 
-        // 3. Собираем items и totalSum
-        const items = order.OrderUnits.map(u => ({
-            name: u.name || 'Товар/послуга',
-            unit: 'шт.',
-            quantity: u.count || 1,
-            price: parseFloat(u.priceForOneThis) || 0,
-            total: (u.count || 1) * (parseFloat(u.priceForThis) || 0)
-        }));
-        const totalSum = items.reduce((s, it) => s + it.total, 0);
-
         // 4. Генерируем номер и сохраняем запись
         const today = new Date();
-        const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(order.id).padStart(4,'0')}`;
+        // const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(order.id).padStart(4,'0')}`;
+        // const invoiceNumber = `${new Date(today).toLocaleDateString()}_${order.id}`;
+        const invoiceNumber = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}_${order.id}`;
         // const invoice = await db.Invoice.create({
         //     orderId: order.id,
         //     invoiceNumber,
@@ -611,6 +603,18 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
 
         // 5. Подготавливаем данные для шаблона
         const user = await db.User.findByPk(req.userId);
+        // 3. Собираем items и totalSum
+        const items = order.OrderUnits.map(u => ({
+            name: u.name || 'Товар/послуга',
+            unit: 'шт.',
+            quantity: u.amount || 1,
+            price: parseFloat(u.priceForOneThis) || 0,
+            total: (u.count || 1) * (parseFloat(u.priceForThis) || 0)
+        }));
+        // const totalSum = items.reduce((s, it) => s + it.total, 0);
+
+
+        const totalSum = parseFloat(order.allPrice);
         const invoiceData = {
             invoiceNumber,
             invoiceDate: today.toLocaleDateString(),
@@ -632,13 +636,13 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
             paymentReason: 'Оплата згідно рахунку',
             pdv: totalSum * 0.2,
             totalSumPdv: totalSum + (totalSum * 0.2),
-            products: items.map((it, i) => ({
+            products: order.OrderUnits.map((OrderUnit, i) => ({
                 index: i+1,
-                name: it.name,
-                unit: it.unit,
-                quantity: it.quantity,
-                price: it.price,
-                total: it.total
+                name: OrderUnit.name || 'Товар/послуга',
+                unit: OrderUnit.unit || 'шт.',
+                quantity: OrderUnit.amount || 1,
+                price: parseFloat(OrderUnit.priceForOneThis) || 0,
+                total: parseFloat(OrderUnit.priceForThis)  || 0
             })),
             totalSum,
             vatSum: totalSum * 0.2,
@@ -670,11 +674,6 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
             }
             names = ['Akt','Rahunok'];
         }
-
-        // let templatePath3 = path.join(__dirname, '../services/document/Rakhunok_Template.docx');
-
-        // const buffer1 = await generateInvoiceDocx(invoiceData, templatePath1);
-        // const buffer2 = await generateInvoiceDocx(invoiceData, templatePath2);
 
         // 1. Генерируем первый DOCX
         let buffer1;
@@ -724,42 +723,6 @@ router.post('/from-order/:orderId/docInZip', authMiddleware, async (req, res) =>
 
         // Запускаем финализацию архива
         await archive.finalize();
-
-
-
-
-
-
-
-
-        // const outputStreamBuffer = new streamBuffers.WritableStreamBuffer();
-        // const archive = archiver('zip', { zlib: { level: 9 } });
-        //
-        // archive.pipe(outputStreamBuffer);
-        // archive.append(buffer1, { name: `${names[0]}_${invoiceNumber}.docx` });
-        // archive.append(buffer2, { name: `${names[1]}_${invoiceNumber}.docx` });
-        //
-        // await archive.finalize();
-        //
-        // archive.on('error', err => {
-        //     throw err;
-        // });
-        //
-        // archive.on('end', async () => {
-        //     const zipBuffer = await outputStreamBuffer.getContents();
-        //     console.log('✔️ ZIP успешно сформирован');
-        //     res.setHeader('Content-Disposition', `attachment; filename="Рахунок_та_${names[0]}_${invoiceNumber}.zip"`);
-        //     res.setHeader('Content-Type', 'application/zip');
-        //     res.end(zipBuffer);
-        // });
-
-        // 7. Генерируем DOCX-буфер и отдаем его
-        // const buffer = await generateInvoiceDocx(invoiceData, templatePath1);
-        // const fileName = `invoice_${invoiceNumber.replace(/\//g,'_')}.docx`;
-        // res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        // res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        // res.end(buffer);
-
     } catch (err) {
         console.error('Помилка при генерації нового інвойсу:', err);
         res.status(500).json({ error: 'Серверна помилка при генерації інвойсу' });
