@@ -342,25 +342,47 @@ router.put(
                     ],
                     transaction: t
                 })
-                await Promise.all(order.OrderUnits.map(async OrderUnit => {
-                    await db.OrderUnit.update(
-                        {
-                            priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), newDiscount),
-                            priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), newDiscount),
-                        },
-                        { where: { idKey: OrderUnit.idKey }, transaction: t }
-                    );
-                    await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
-                        db.OrderUnitUnit.update(
+                if(newDiscount.includes('%')){
+                    await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                        await db.OrderUnit.update(
                             {
-                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), newDiscount),
-                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), newDiscount),
-                                priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), newDiscount),
+                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), newDiscount),
+                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), newDiscount),
                             },
-                            { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
-                        )
-                    ));
-                }));
+                            { where: { idKey: OrderUnit.idKey }, transaction: t }
+                        );
+                        await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                            db.OrderUnitUnit.update(
+                                {
+                                    priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), newDiscount),
+                                    priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), newDiscount),
+                                    priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), newDiscount),
+                                },
+                                { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                            )
+                        ));
+                    }));
+                } else {
+                    await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                        await db.OrderUnit.update(
+                            {
+                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), "0"),
+                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), "0"),
+                            },
+                            { where: { idKey: OrderUnit.idKey }, transaction: t }
+                        );
+                        await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                            db.OrderUnitUnit.update(
+                                {
+                                    priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), "0"),
+                                    priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), "0"),
+                                    priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), "0"),
+                                },
+                                { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                            )
+                        ));
+                    }));
+                }
                 let allPrice = calcSumPriceAndAllPrice(parseFloat(order.price), newDiscount)
 
 
@@ -381,6 +403,16 @@ router.put(
                                     as: 'OrderUnitUnits',
                                 },
                             ],
+                        },
+                        {
+                            model: db.User,
+                            as: 'executor',
+                            attributes: ['username', 'id', 'firstName', "lastName", "familyName", 'email', 'phoneNumber', 'discount', 'telegram', 'photoLink'],
+                        },
+                        {
+                            model: db.User,
+                            as: 'client',
+                            attributes: ['username', 'id', 'firstName', "lastName", "familyName", 'email', 'phoneNumber', 'discount', 'telegram', 'photoLink'],
                         },
                     ],
                     transaction: t
@@ -406,13 +438,75 @@ router.put(
             let clientId = req.body.userId
 
             await db.sequelize.transaction(async (t) => {
-                const order = await db.Order.findOne({
-                    where: {id: orderId},
+                const user = await db.User.findOne({
+                    where: {id: clientId},
                     // attributes: ['priceForThis'],
                     transaction: t
                 })
+                let newDiscount = `${user.discount}%`
+                const order = await db.Order.findOne({
+                    where: {id: orderId},
+                    // attributes: ['priceForThis'],
+                    include: [
+                        {
+                            model: db.OrderUnit,
+                            as: 'OrderUnits',
+                            include: [
+                                {
+                                    model: db.OrderUnitUnit,
+                                    as: 'OrderUnitUnits',
+                                },
+                            ],
+                        },
+                    ],
+                    transaction: t
+                })
+                if(newDiscount.includes('%')){
+                    await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                        await db.OrderUnit.update(
+                            {
+                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), newDiscount),
+                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), newDiscount),
+                            },
+                            { where: { idKey: OrderUnit.idKey }, transaction: t }
+                        );
+                        await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                            db.OrderUnitUnit.update(
+                                {
+                                    priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), newDiscount),
+                                    priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), newDiscount),
+                                    priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), newDiscount),
+                                },
+                                { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                            )
+                        ));
+                    }));
+                } else {
+                    await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                        await db.OrderUnit.update(
+                            {
+                                priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), "0"),
+                                priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), "0"),
+                            },
+                            { where: { idKey: OrderUnit.idKey }, transaction: t }
+                        );
+                        await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                            db.OrderUnitUnit.update(
+                                {
+                                    priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), "0"),
+                                    priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), "0"),
+                                    priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), "0"),
+                                },
+                                { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                            )
+                        ));
+                    }));
+                }
+                let allPrice = calcSumPriceAndAllPrice(parseFloat(order.price), newDiscount)
+
+
                 await db.Order.update(
-                    {clientId: clientId},
+                    {clientId: clientId, prepayment: newDiscount, allPrice: allPrice},
                     {where: {id: orderId}, transaction: t}
                 );
                 const orderAfterAll = await db.Order.findOne({
