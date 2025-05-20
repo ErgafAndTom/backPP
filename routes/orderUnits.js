@@ -71,22 +71,26 @@ router.post(
                     // });
 
                     // Перерасчёт цен для OrderUnitUnits
-                    const mappedOrderUnitUnits = await Promise.all(
-                        newOrderUnitAfterCalc.OrderUnitUnits.map(async (OrderUnitUnit) => ({
-                            ...OrderUnitUnit,
-                            priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForOneThis), order.prepayment),
-                            priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForThis), order.prepayment),
-                            priceForAllThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForAllThis), order.prepayment)
-                        }))
-                    );
+                    let mappedNewOrderUnitAfterCalc = newOrderUnitAfterCalc
+                    if(order.prepayment.includes('%')){
+                        const mappedOrderUnitUnits = await Promise.all(
+                            newOrderUnitAfterCalc.OrderUnitUnits.map(async (OrderUnitUnit) => ({
+                                ...OrderUnitUnit,
+                                priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForOneThis), order.prepayment),
+                                priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForThis), order.prepayment),
+                                priceForAllThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForAllThis), order.prepayment)
+                            }))
+                        );
 
-                    // Перерасчёт цен для самого OrderUnit
-                    const mappedNewOrderUnitAfterCalc = {
-                        ...newOrderUnitAfterCalc,
-                        priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForOneThis), order.prepayment),
-                        priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForThis), order.prepayment),
-                        OrderUnitUnits: mappedOrderUnitUnits
-                    };
+                        // Перерасчёт цен для самого OrderUnit
+                        mappedNewOrderUnitAfterCalc = {
+                            ...newOrderUnitAfterCalc,
+                            priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForOneThis), order.prepayment),
+                            priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForThis), order.prepayment),
+                            OrderUnitUnits: mappedOrderUnitUnits
+                        };
+                    }
+
 
                     // Создание записи в БД с вложенными объектами
                     const OrderUnit = await db.OrderUnit.create(mappedNewOrderUnitAfterCalc, {
