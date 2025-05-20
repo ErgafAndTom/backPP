@@ -54,13 +54,51 @@ router.post(
                     res.status(500).json({error: 'Статус "Взятий в роботу".'});
                     return
                 } else {
-                    const OrderUnit = await db.OrderUnit.create(newOrderUnitAfterCalc, {
+                    // let mappedNewOrderUnitAfterCalc = await Promise.all(newOrderUnitAfterCalc.OrderUnitUnits.map(OrderUnitUnit => {
+                    //     OrderUnitUnit.priceForOneThisDiscount = calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), order.discount)
+                    //         OrderUnitUnit.priceForThisDiscount = calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), order.discount)
+                    //         OrderUnitUnit.priceForAllThisDiscount = calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), order.discount)
+                    // }
+                    // ));
+                    // newOrderUnitAfterCalc.priceForOneThisDiscount =  calcSumPriceAndAllPrice(parseFloat(newOrderUnitAfterCalc.priceForOneThis), order.discount)
+                    // newOrderUnitAfterCalc.priceForThisDiscount = calcSumPriceAndAllPrice(parseFloat(newOrderUnitAfterCalc.priceForThis), order.discount)
+                    // const OrderUnit = await db.OrderUnit.create(mappedNewOrderUnitAfterCalc, {
+                    //     include: [{
+                    //         model: db.OrderUnitUnit,
+                    //         as: 'OrderUnitUnits'
+                    //     }],
+                    //     transaction: t
+                    // });
+
+                    // Перерасчёт цен для OrderUnitUnits
+                    const mappedOrderUnitUnits = await Promise.all(
+                        newOrderUnitAfterCalc.OrderUnitUnits.map(async (OrderUnitUnit) => ({
+                            ...OrderUnitUnit,
+                            priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForOneThis), order.prepayment),
+                            priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForThis), order.prepayment),
+                            priceForAllThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForAllThis), order.prepayment)
+                        }))
+                    );
+
+                    // Перерасчёт цен для самого OrderUnit
+                    const mappedNewOrderUnitAfterCalc = {
+                        ...newOrderUnitAfterCalc,
+                        priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForOneThis), order.prepayment),
+                        priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForThis), order.prepayment),
+                        OrderUnitUnits: mappedOrderUnitUnits
+                    };
+
+                    // Создание записи в БД с вложенными объектами
+                    const OrderUnit = await db.OrderUnit.create(mappedNewOrderUnitAfterCalc, {
                         include: [{
                             model: db.OrderUnitUnit,
                             as: 'OrderUnitUnits'
                         }],
                         transaction: t
                     });
+
+
+
                     const orderUnits = await db.OrderUnit.findAll({
                         where: {orderId: orderId},
                         // attributes: ['priceForThis'],
@@ -288,6 +326,30 @@ function calcSumPriceAndAllPrice(order, sum) {
         }
     } else if (order.prepayment) {
         const discountNumeric = parseFloat(order.prepayment) || 0;
+        const discountedValue = numericAmount - discountNumeric;
+        allPrice = discountedValue < 0 ? '0.00' : discountedValue.toFixed(2);
+    } else {
+        allPrice = numericAmount.toFixed(2);
+    }
+    return allPrice;
+}
+
+function calcSumPriceAndAllPriceFromOrders(sum, newDiscount) {
+    const numericAmount = parseFloat(sum) || 0;
+    let allPrice;
+    if (newDiscount.includes('%')) {
+        const percent = parseFloat(newDiscount.replace('%', ''));
+        if (percent > 50) {
+            return;
+        }
+        if (percent >= 1 && percent <= 50) {
+            const discountedValue = numericAmount - (numericAmount * percent / 100);
+            allPrice = discountedValue.toFixed(2);
+        } else {
+            allPrice = numericAmount.toFixed(2);
+        }
+    } else if (newDiscount) {
+        const discountNumeric = parseFloat(newDiscount) || 0;
         const discountedValue = numericAmount - discountNumeric;
         allPrice = discountedValue < 0 ? '0.00' : discountedValue.toFixed(2);
     } else {

@@ -342,25 +342,6 @@ router.put(
                     ],
                     transaction: t
                 })
-                // await Promise.all(order.OrderUnits.map(async OrderUnit => {
-                //     await db.OrderUnit.update(
-                //         {
-                //             priceForOneThisDiscount: (OrderUnit.priceForOneThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
-                //             priceForThisDiscount: (OrderUnit.priceForThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
-                //         },
-                //         { where: { idKey: OrderUnit.idKey }, transaction: t }
-                //     );
-                //     await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
-                //         db.OrderUnitUnit.update(
-                //             {
-                //                 priceForOneThisDiscount: (OrderUnitUnit.priceForOneThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
-                //                 priceForThisDiscount: (OrderUnitUnit.priceForThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
-                //                 priceForAllThisDiscount: (OrderUnitUnit.priceForAllThis * (1 - parseInt(newDiscount) / 100)).toFixed(2),
-                //             },
-                //             { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
-                //         )
-                //     ));
-                // }));
                 await Promise.all(order.OrderUnits.map(async OrderUnit => {
                     await db.OrderUnit.update(
                         {
