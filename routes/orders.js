@@ -461,6 +461,25 @@ router.put(
                     ],
                     transaction: t
                 })
+                // await Promise.all(order.OrderUnits.map(async OrderUnit => {
+                //     await db.OrderUnit.update(
+                //         {
+                //             priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForOneThis), newDiscount),
+                //             priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnit.priceForThis), newDiscount),
+                //         },
+                //         { where: { idKey: OrderUnit.idKey }, transaction: t }
+                //     );
+                //     await Promise.all(OrderUnit.OrderUnitUnits.map(OrderUnitUnit =>
+                //         db.OrderUnitUnit.update(
+                //             {
+                //                 priceForOneThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForOneThis), newDiscount),
+                //                 priceForThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForThis), newDiscount),
+                //                 priceForAllThisDiscount: calcSumPriceAndAllPrice(parseFloat(OrderUnitUnit.priceForAllThis), newDiscount),
+                //             },
+                //             { where: { idKey: OrderUnitUnit.idKey }, transaction: t }
+                //         )
+                //     ));
+                // }));
                 if(newDiscount.includes('%')){
                     await Promise.all(order.OrderUnits.map(async OrderUnit => {
                         await db.OrderUnit.update(
