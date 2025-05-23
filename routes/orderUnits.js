@@ -89,7 +89,25 @@ router.post(
                             priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForThis), order.prepayment),
                             OrderUnitUnits: mappedOrderUnitUnits
                         };
+                    } else {
+                        const mappedOrderUnitUnits = await Promise.all(
+                            newOrderUnitAfterCalc.OrderUnitUnits.map(async (OrderUnitUnit) => ({
+                                ...OrderUnitUnit,
+                                priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForOneThis), "0"),
+                                priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForThis), "0"),
+                                priceForAllThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(OrderUnitUnit.priceForAllThis), "0")
+                            }))
+                        );
+
+                        // Перерасчёт цен для самого OrderUnit
+                        mappedNewOrderUnitAfterCalc = {
+                            ...newOrderUnitAfterCalc,
+                            priceForOneThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForOneThis), "0"),
+                            priceForThisDiscount: calcSumPriceAndAllPriceFromOrders(parseFloat(newOrderUnitAfterCalc.priceForThis), "0"),
+                            OrderUnitUnits: mappedOrderUnitUnits
+                        };
                     }
+
 
 
                     // Создание записи в БД с вложенными объектами
@@ -590,8 +608,35 @@ function createOrderUnit(toCalc, orderId, pricesThis, req) {
         return;
     }
     // --- Формування основного об’єкта замовлення ---
+    let formats = [
+        // {name: "Задати свій розмір", x: 1, y: 1},
+        {name: "А6 (105 х 148 мм)", x: 105, y: 148},
+        {name: "A5 (148 х 210 мм)", x: 148, y: 210},
+        {name: "A4 (210 x 297 мм)", x: 210, y: 297},
+        {name: "А3 (297 х 420 мм)", x: 297, y: 420},
+        {name: "SR А3 (310 х 440 мм)", x: 310, y: 440},
+        // {name: "90х50 мм", x: 90, y: 50},
+        // {name: "85x55 мм", x: 85, y: 55},
+        // {name: "100х150 мм", x: 100, y: 150},
+        // {name: "200х100 мм", x: 200, y: 100},
+        // {name: "50х50 мм", x: 50, y: 50},
+        // {name: "60х60 мм", x: 60, y: 60},
+        // {name: "70х70 мм", x: 70, y: 70},
+        // {name: "80х80 мм", x: 80, y: 80},
+        // {name: "90х90 мм", x: 90, y: 90},
+        // {name: "100x100 мм", x: 100, y: 100},
+        // {name: "120х120 мм", x: 120, y: 120},
+    ]
+    let format = formats.find(x => x.x === toCalc.size.x && x.y === toCalc.size.y);
+    if(!format){
+        format = `${toCalc.size.x}x${toCalc.size.y} мм`;
+    }
+    let laminationStr = ""
+    if (toCalc.material.type !== "Не потрібно") {
+        laminationStr = `з ${toCalc.lamination.material}`
+    }
     const OrderUnit = {
-        name: toCalc.nameOrderUnit,
+        name: `${toCalc.nameOrderUnit} ${format.name} ${toCalc.color.sides} на ${toCalc.material.material} ${laminationStr}`,
         amount: toCalc.count,
         newField2: toCalc.size.x,
         newField3: toCalc.size.y,
