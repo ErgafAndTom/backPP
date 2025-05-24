@@ -294,7 +294,9 @@ router.post("/getPPContractorsForDoc",
                     include: [
                         {
                             model: db.Contractor,
-                            where: { pdv: buyerContractor.pdv },
+                            where: { pdv: buyerContractor.pdv === true
+                                    ? "true"
+                                    : { [Op.or]: ["false", "", null] }},
                             include: [
                                 {
                                     model: db.User,

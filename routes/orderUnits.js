@@ -610,11 +610,11 @@ function createOrderUnit(toCalc, orderId, pricesThis, req) {
     // --- Формування основного об’єкта замовлення ---
     let formats = [
         // {name: "Задати свій розмір", x: 1, y: 1},
-        {name: "А6 (105 х 148 мм)", x: 105, y: 148},
-        {name: "A5 (148 х 210 мм)", x: 148, y: 210},
-        {name: "A4 (210 x 297 мм)", x: 210, y: 297},
-        {name: "А3 (297 х 420 мм)", x: 297, y: 420},
-        {name: "SR А3 (310 х 440 мм)", x: 310, y: 440},
+        {name: "А6 (105х148мм)", x: 105, y: 148},
+        {name: "A5 (148х210мм)", x: 148, y: 210},
+        {name: "A4 (210x297мм)", x: 210, y: 297},
+        {name: "А3 (297х420мм)", x: 297, y: 420},
+        {name: "SR А3 (310х440мм)", x: 310, y: 440},
         // {name: "90х50 мм", x: 90, y: 50},
         // {name: "85x55 мм", x: 85, y: 55},
         // {name: "100х150 мм", x: 100, y: 150},
@@ -632,11 +632,23 @@ function createOrderUnit(toCalc, orderId, pricesThis, req) {
         format = `${toCalc.size.x}x${toCalc.size.y} мм`;
     }
     let laminationStr = ""
-    if (toCalc.material.type !== "Не потрібно") {
-        laminationStr = `з ${toCalc.lamination.material}`
+    if (toCalc.lamination.type !== "Не потрібно") {
+        laminationStr = `, ${toCalc.lamination.type} ${toCalc.lamination.size}`
+    }
+    let bigStr = ``
+    if (toCalc.big !== "Не потрібно"){
+        bigStr = `, з ${toCalc.big} бігу`
+    }
+    let cuteStr = ``
+    if (toCalc.cute !== "Не потрібно"){
+        cuteStr = `, з підрізкою ${toCalc.cute} кутів`
+    }
+    let holesStr = ``
+    if (toCalc.holes !== "Не потрібно"){
+        holesStr = `, з отворами: ${toCalc.holes}`
     }
     const OrderUnit = {
-        name: `${toCalc.nameOrderUnit} ${format.name} ${toCalc.color.sides} на ${toCalc.material.material} ${laminationStr}`,
+        name: `${toCalc.nameOrderUnit} ${format.name} ${toCalc.color.sides} на ${toCalc.material.material} ${laminationStr} ${bigStr} ${cuteStr} ${holesStr}`,
         amount: toCalc.count,
         newField2: toCalc.size.x,
         newField3: toCalc.size.y,
