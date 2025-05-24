@@ -255,6 +255,74 @@ router.post(
     }
 );
 
+router.put(
+    '/copy',
+    authMiddleware,
+    roleMiddleware(['admin']),
+    async (req, res) => {
+        try {
+            const result = await db.sequelize.transaction(async (t) => {
+                const { id, currentPage = 1, inPageCount = 10, columnName, search = '' } = req.body;
+
+                const pageSize = inPageCount;
+                const columnNameForOrder = columnName?.column || 'id';
+                const toColumn = columnName?.reverse ? 'DESC' : 'ASC';
+                const searchString = `%${search}%`;
+
+                const fieldsForSearch = Object.keys(db.Material.rawAttributes);
+                const searchConditions = fieldsForSearch.map(field => ({
+                    [field]: { [Op.like]: searchString }
+                }));
+
+                // Отримати позицію оригіналу
+                const allMatching = await db.Material.findAll({
+                    where: { [Op.or]: searchConditions },
+                    order: [[columnNameForOrder, toColumn]],
+                    transaction: t
+                });
+
+                const referenceIndex = allMatching.findIndex(mat => mat.id === id);
+                if (referenceIndex === -1) throw new Error("Reference material not found in filtered list");
+
+                const materialForCopy = await db.Material.findByPk(id, { transaction: t });
+                if (!materialForCopy) throw new Error("Material not found");
+
+                const plainCopy = materialForCopy.get({ plain: true });
+                delete plainCopy.id;
+                delete plainCopy.createdAt;
+                delete plainCopy.updatedAt;
+
+                await db.Material.create(plainCopy, { transaction: t });
+
+                // Новий fetch, щоб отримати копію та референс в одному вікні
+                const offset = Math.floor((referenceIndex + 1) / pageSize) * pageSize;
+
+                const result = await db.Material.findAndCountAll({
+                    offset,
+                    limit: pageSize,
+                    where: {
+                        [Op.or]: searchConditions
+                    },
+                    order: [[columnNameForOrder, toColumn]],
+                    transaction: t
+                });
+
+                result.metadata = Object.keys(db.Material.rawAttributes);
+                result.metadataProductUnit = Object.keys(db.Material.rawAttributes);
+                result.currentOffset = offset;
+
+                return result;
+            });
+
+            res.status(201).json(result);
+        } catch (error) {
+            console.error('Copy error:', error);
+            res.status(500).json({ error: 'Ошибка при создании материала' });
+        }
+    }
+);
+
+
 // Обновление материала (только для администратора)
 router.put(
     '/OnlyOneField',
