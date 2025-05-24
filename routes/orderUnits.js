@@ -51,7 +51,9 @@ router.post(
                 })
                 console.log(order.dataValues);
                 if(order.dataValues.status !== "0"){
-                    res.status(500).json({error: 'Статус "Взятий в роботу".'});
+                    res.status(500).json({
+                        error: 'Замовлення готове. Додавання недоступно'
+                    });
                     return
                 } else {
                     // let mappedNewOrderUnitAfterCalc = await Promise.all(newOrderUnitAfterCalc.OrderUnitUnits.map(OrderUnitUnit => {
